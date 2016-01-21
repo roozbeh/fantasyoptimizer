@@ -10,7 +10,7 @@
   [population mutator threshold fitness]
   (for [member population]
     (if (< (rand) threshold)
-      (let [value (into {}  (map mutator (:value member)))]
+      (let [value (into {}  (map #(mutator % (:value member)) (:value member)))]
         {:value value
          :fitness (fitness value)})
       member)))
@@ -70,7 +70,7 @@
          population (init-population size fitness init-value)
          best-yet (first population)]
     (println (str "Running iteration #" iteration ", best: " (:fitness (first population))
-                  ", worst: " (:fitness (last population))))
+                  ", best-yet: " (:fitness best-yet)))
     (if (or (> iteration max-iterations) (zero? (:fitness (first population))))
       best-yet
       (recur (inc iteration)
