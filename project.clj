@@ -7,5 +7,9 @@
                 ]
 
   :main rz.optimizer
+  :uberjar-name "fantasy_optimizer.jar"
   :jvm-opts ["-Xmx2g" "-Djava.awt.headless=true" "-XX:-OmitStackTraceInFastThrow"]
+
+  :profiles {:remote-debug {:jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"]}
+             :uberjar      {:aot [rz.optimizer]}}
   )

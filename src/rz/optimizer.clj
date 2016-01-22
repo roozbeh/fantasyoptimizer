@@ -7,7 +7,8 @@
             [net.cgrand.enlive-html :as html]
             [rz.projection :as proj]
             [rz.data :as data]
-            ))
+            )
+  (:gen-class))
 
 (def ^:dynamic *team-salary* 60000 )
 (def ^:dynamic *salary-penalty* -1000000 )
@@ -137,7 +138,7 @@
 
 (defn optimize-lineup
   []
-  (let [best-yet (ga/evolve2 1000 0.02 init-value mutator fitness 10000)
+  (let [best-yet (ga/evolve2 10000 0.01 init-value mutator fitness 100000)
         best-team (:value best-yet)]
     (println (str "Fitness: " (fitness best-team)))
     (print-team best-team)
@@ -145,3 +146,30 @@
 
 
 
+
+
+(defn- get-player
+  [name]
+  (first (filter (fn [p] (re-find (re-pattern (str name ".*")) (:name p))) players-data)))
+
+(defn get-team
+  []
+  {
+   :PG1 (get-player "Brandon Knight")
+   :PG2 (get-player "Jeff Teague")
+   :SG1 (get-player "Devin Booker")
+   :SG2 (get-player "Kyle Korver")
+   :SF1 (get-player "LeBron James")
+   :SF2 (get-player "P.J. Tucker")
+   :PF1 (get-player "Anthony Davis")
+   :PF2 (get-player "Kevin Love")
+   :C (get-player "Marc Gasol")})
+
+(comment
+  (print-team (get-team))
+  )
+
+
+(defn -main
+  [& args]
+  (optimize-lineup))

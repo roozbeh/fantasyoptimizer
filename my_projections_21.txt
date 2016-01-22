@@ -1,0 +1,60 @@
+January 21
+
+RotoWire:
+	Today's Optimal Lineup For FanDuel
+	Lock	Pos	Name			Team	Opp		MinsSalary	Pts	Value	Cap %	Exclude
+		PG	Knight, Brandon		PHO		SAS		38	$6,500	33.3	5.12	10.8%	
+		PG	Teague, Jeff		ATL		@SAC	30	$5,700	30.3	5.32	9.5%	
+		SG	Lee, Courtney		MEM		@DEN	30	$4,000	19.2	4.79	6.7%	
+		SG	Korver, Kyle		ATL		@SAC	32	$3,800	22.4	5.88	6.3%	
+		SF	James, LeBron		CLE		LAC		36	$9,800	44.7	4.56	16.3%	
+		SF	Green, Jeff			MEM		@DEN	29	$4,700	22.2	4.72	7.8%	
+		PF	Davis, Anthony		NOP		DET		37	$10,300	49.4	4.79	17.2%	
+		PF	Aldridge, LaMarcus	SAS		@PHO	30	$7,200	34.9	4.85	12.0%	
+		C	Gasol, Marc			MEM		@DEN	34	$8,000	37.5	4.69	13.3%	
+	Totals											$60,000	293.90	4.90	100.0%
+	
+
+
+	|             :name | :Pos |  :Sal | :FPPG | :Proj | :value | :injury |
+	|-------------------+------+-------+-------+-------+--------+---------|
+	|    Brandon Knight |   PG |  6500 |  31.6 |  33.3 |   5.12 |         |
+	|       Kyle Korver |   SG |  3800 |  17.8 |  19.6 |   5.15 |         |
+	|      LeBron James |   SF |  9800 |  43.5 |  44.7 |   4.56 |         |
+	|     Anthony Davis |   PF | 10300 |  43.5 |  49.4 |   4.79 |         |
+	|       Jeff Teague |   PG |  5700 |  26.7 |  28.3 |   4.97 |         |
+	| LaMarcus Aldridge |   PF |  7200 |    30 |  31.4 |   4.36 |         |
+	|        Marc Gasol |    C |  8000 |    33 |    42 |   5.25 |         |
+	|      Courtney Lee |   SG |  4000 |  17.2 |  18.5 |   4.63 |         |
+	|        Jeff Green |   SF |  4700 |  19.9 |  21.4 |   4.56 |         |
+
+	| :name | :Position | :Salary | :FPPG | :Proj |            :Value |
+	|-------+-----------+---------+-------+-------+-------------------|
+	| Total |           |   60000 | 263.2 | 288.6 | 4.821111111111112 |	
+	
+	
+	
+	
+===================================================================== MY SHIT =============================	
+	
+	
+Fitness: 277.9	
+	|                    :name | :Pos |  :Sal | :FPPG | :Proj | :value | :injury |
+	|--------------------------+------+-------+-------+-------+--------+---------|
+	|           Brandon Knight |   PG |  6500 |  31.6 |  33.3 |   5.12 |         |
+	|          Darren Collison |   PG |  5200 |  22.3 |  21.4 |   4.12 |         |
+	|           Jamal Crawford |   SG |  4400 |  17.7 |  21.4 |   4.85 |         |
+	| Kentavious Caldwell-Pope |   SG |  5900 |  24.3 |  22.2 |   3.76 |         |
+	|             LeBron James |   SF |  9800 |  43.5 |  44.7 |   4.56 |         |
+	|            Marcus Morris |   SF |  5200 |  24.3 |  25.3 |   4.86 |         |
+	|            Anthony Davis |   PF | 10300 |  43.5 |  49.4 |   4.79 |         |
+	|          Markieff Morris |   PF |  4600 |  18.8 |  22.5 |   4.89 |     GTD |
+	|               Al Horford |    C |  7600 |  31.5 |  37.7 |   4.96 |         |
+	
+	| :name | :Position | :Salary | :FPPG | :Proj |            :Value |
+	|-------+-----------+---------+-------+-------+-------------------|
+	| Total |           |   59500 | 257.5 | 277.9 | 4.656666666666666 |
+	Team Salary: 59500
+	Team Sum FPPG: 257.5
+	Team Sum Projection: 277.9
+	=> nil

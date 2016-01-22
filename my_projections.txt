@@ -1,0 +1,195 @@
+January 20 
+Fitness: 263.1
+(
+{:name "RussellWestbrook", :Position "PG", :Salary "10500"}
+{:name "KembaWalker", :Position "PG", :Salary "8600"}
+{:name "JimmyButler", :Position "SG", :Salary "9100"}
+{:name "TonySnell", :Position "SG", :Salary "3500"}
+{:name "HarrisonBarnes", :Position "SF", :Salary "4700"}
+{:name "BojanBogdanovic", :Position "SF", :Salary "3500"}
+{:name "TerrenceJones", :Position "PF", :Salary "4400"}
+{:name "KevinLove", :Position "PF", :Salary "6900"}
+{:name "AndreDrummond", :Position "C", :Salary "8800"}
+)
+
+
+Fitness: 257.40000000000003
+(
+{:name "RussellWestbrook", :Position "PG", :Salary "10500"}
+{:name "JohnWall", :Position "PG", :Salary "10200"}
+{:name "ImanShumpert", :Position "SG", :Salary "3800"}
+{:name "AllenCrabbe", :Position "SG", :Salary "4600"}
+{:name "KevinDurant", :Position "SF", :Salary "9900"}
+{:name "AndrewWiggins", :Position "SF", :Salary "6700"}
+{:name "JaredSullinger", :Position "PF", :Salary "5500"}
+{:name "TristanThompson", :Position "PF", :Salary "4500"}
+{:name "MeyersLeonard", :Position "C", :Salary "3900"}
+)
+
+Fitness: 256.3
+({:name "ReggieJackson", :Pos "PG", :Sal "7200", :Pts "32.9"}
+ {:name "JamesHarden", :Pos "SG", :Sal "9300", :Pts "44.2"}
+ {:name "MarcusMorris", :Pos "SF", :Sal "5200", :Pts "24.2"}
+ {:name "KrisHumphries", :Pos "PF", :Sal "3500", :Pts "13.1"}
+ {:name "KembaWalker", :Pos "PG", :Sal "8600", :Pts "35"}
+ {:name "DerrickFavors", :Pos "PF", :Sal "7700", :Pts "33.3"}
+ {:name "AndreDrummond", :Pos "C", :Sal "8800", :Pts "41.8"}
+ {:name "NickYoung", :Pos "SG", :Sal "3500", :Pts "11.1"}
+ {:name "EvanTurner", :Pos "SF", :Sal "4800", :Pts "20.7"})
+
+                                                                                FPPG      Projection
++	PG	Westbrook, Russell	OKC	CHA	37	$10,500	47.9	4.56	17.5%			24.23       22.6	43
+	PG	Payton, Elfrid	ORL	PHI	33	$5,700	29.8	5.22	9.5%				10.92		12.1	36
+	SG	Harden, James	HOU	DET	36	$9,300	41.8	4.49	15.5%				27.47		25.9	43 
+	SG	Williams, Louis	LAL	SAC	32	$5,800	30	5.17	9.7%					15.54		18.7	35
+	SF	Harris, Tobias	ORL	PHI	37	$5,600	32.9	5.88	9.3%				13.45		13.0	40
+	SF	Muhammad, Shabazz	MIN	@DAL	27	$3,800	23.5	6.18	6.3%		9.51		10.7	43
+	PF	Gibson, Taj	CHI	GSW	34	$4,900	27.7	5.66	8.2%					7.68		8.1		40
+	PF	Patterson, Patrick	TOR	BOS	31	$3,700	22.2	6.01	6.2%			6.39		7.0		34
+	C	Cousins, DeMarcus	SAC	@LAL	36	$10,700	50.6	4.73	17.8%		25.88		24.9	32
+	
+	
+FPPG = 24.23 + 10.92 + 27.47 + 15.54 + 13.45 + 9.51 + 7.68 + 6.39 + 25.88 = 141.01
+Projections(NumberFire) = 22.6 + 12.1 + 25.9 + 18.7 + 13.0 + 10.7 + 8.1 + 7.0 + 24.9 = 143
+
+
+
+Fitness: 153.36
+(
+ {:name "Kyle Lowry", :Pos "PG", :Sal "9200", :Pts "39.5"}
+ {:name "Raymond Felton", :Pos "PG", :Sal "4200", :Pts "18.7"}
+ {:name "Victor Oladipo", :Pos "SG", :Sal "6000", :Pts "27"}
+ {:name "Jimmy Butler", :Pos "SG", :Sal "9100", :Pts "38"}
+ {:name "Rondae Hollis-Jefferson", :Pos "SF", :Sal "4000", :Pts "17.2"}
+ {:name "Luol Deng", :Pos "SF", :Sal "4300", :Pts "19.2"}
+ {:name "Paul Millsap", :Pos "PF", :Sal "8700", :Pts "38"}
+ {:name "Bobby Portis", :Pos "PF", :Sal "3500", :Pts "12.7"}
+ {:name "DeMarcus Cousins", :Pos "C", :Sal "10700", :Pts "45"}
+)
+
+Projections(Number fire): 153.36
+FPPGS=39.5 + 27 + 17.2 + 38 + 18.7 + 12.7 + 45 + 38 + 19.2=255.3
+
+Fitness: 150.4
+({:name "Reggie Jackson", :Pos "PG", :Sal "7200", :Pts "32.9"}
+ {:name "Klay Thompson", :Pos "SG", :Sal "6900", :Pts "29.4"}
+ {:name "Robert Covington", :Pos "SF", :Sal "4800", :Pts "21.9"}
+ {:name "Julius Randle", :Pos "PF", :Sal "5500", :Pts "24.8"}
+ {:name "Marcus Smart", :Pos "PG", :Sal "5400", :Pts "21.5"}
+ {:name "Chris Bosh", :Pos "PF", :Sal "7800", :Pts "33.6"}
+ {:name "Timofey Mozgov", :Pos "C", :Sal "3500", :Pts "12.9"}
+ {:name "DeMar DeRozan", :Pos "SG", :Sal "8200", :Pts "34.9"}
+ {:name "Kevin Durant", :Pos "SF", :Sal "9900", :Pts "44.1"})
+Projections(Number fire): 150.4
+FPPGS=32.9+29.4+21.9+24.8+21.5+33.6+12.9+34.9+44.1=256
+
+
+NumberFire:
+
+Pos	Player	Proj	Salary
+SG	James Harden	40.61	$9300.00  25.9
+C	DeMarcus Cousins	45.91	$10700.00 24.9
+PG	Rajon Rondo	33.64	$8100.00 12.7
+SF	Tobias Harris	28.83	$5600.00 13.0
+SG	Evan Fournier	22.83	$4800.00 13.6
+PF	Nerlens Noel	26.78	$6600.00 11.0
+SF	Robert Covington	27.38	$4800.00 12.1
+PF	Aaron Gordon	23.18	$4200.00 7.5
+PG	Elfrid Payton	26.96	$5700.00 12.1
+Number Fire projection: 133
+
+
+Fitness: 146.6
+({:name "Isaiah Thomas",  :Pos "PG",  :Sal "8400",  :Pts "35.1",  :Proj "21.4"}
+ {:name "James Harden",  :Pos "SG",  :Sal "9300",  :Pts "44.2",  :Proj "25.9"}
+ {:name "LeBron James",  :Pos "SF",  :Sal "9800",  :Pts "44",  :Proj "25.8"}
+ {:name "Jared Sullinger",  :Pos "PF",  :Sal "5500",  :Pts "25.3",  :Proj "11.1"}
+ {:name "Jordan Clarkson",  :Pos "PG",  :Sal "5900",  :Pts "24.4",  :Proj "16.3"}
+ {:name "Jerami Grant",  :Pos "PF",  :Sal "3900",  :Pts "19.3",  :Proj "9.2"}
+ {:name "Willie Cauley-Stein",  :Pos "C",  :Sal "3600",  :Pts "14.2",  :Proj "5.6"}
+ {:name "Marco Belinelli",  :Pos "SG",  :Sal "4000",  :Pts "16.3",  :Proj "11.0"}
+ {:name "Gordon Hayward",  :Pos "SF",  :Sal "8100",  :Pts "31.3",  :Proj "20.3"})
+FFPGS
+
+
+
+
+Fitness: 147.89999999999998
+({:name "Kemba Walker", :Pos "PG", :Sal "8600", :Proj "20.6"}
+ {:name "James Harden", :Pos "SG", :Sal "9300", :Proj "25.9"}
+ {:name "Kevin Durant", :Pos "SF", :Sal "9900", :Proj "26.3"}
+ {:name "Kevin Love", :Pos "PF", :Sal "6900", :Proj "18.0"}
+ {:name "Jeremy Lin", :Pos "PG", :Sal "5300", :Proj "12.1"}
+ {:name "Larry Nance Jr.", :Pos "PF", :Sal "4200", :Proj "7.3"}
+ {:name "Kosta Koufos", :Pos "C", :Sal "3500", :Proj "8.0"}
+ {:name "Kent Bazemore", :Pos "SG", :Sal "5000", :Proj "11.7"}
+ {:name "Rudy Gay", :Pos "SF", :Sal "7300", :Proj "18.0"})
+Team: 60000
+
+Fitness: 146.1
+({:name "Jeff Teague", :Pos "PG", :Sal "5700", :Proj "16.2"}
+ {:name "Dwyane Wade", :Pos "SG", :Sal "7100", :Proj "18.9"}
+ {:name "LeBron James", :Pos "SF", :Sal "9800", :Proj "25.8"}
+ {:name "Clint Capela", :Pos "PF", :Sal "4600", :Proj "8.0"}
+ {:name "Kyle Lowry", :Pos "PG", :Sal "9200", :Proj "22.9"}
+ {:name "Frank Kaminsky", :Pos "PF", :Sal "4300", :Proj "8.1"}
+ {:name "Bismack Biyombo", :Pos "C", :Sal "4300", :Proj "5.9"}
+ {:name "C.J. McCollum", :Pos "SG", :Sal "7700", :Proj "21.0"}
+ {:name "Andrew Wiggins", :Pos "SF", :Sal "6700", :Proj "19.3"})
+Team: 59400
+
+
+
+Fitness: 153.29999999999998
+(
+ {:name "Kemba Walker", :Pos "PG", :Sal "8600", :Proj "20.6"} 35 41
+ {:name "Reggie Jackson", :Pos "PG", :Sal "7200", :Proj "19.6"} 32.9 41
+ {:name "Louis Williams", :Pos "SG", :Sal "5800", :Proj "18.7"} 23.7 41
+ {:name "DeMar DeRozan", :Pos "SG", :Sal "8200", :Proj "22.7"} 34.9 41
+ {:name "Andrew Wiggins", :Pos "SF", :Sal "6700", :Proj "19.3"} 28.6 42
+ {:name "Nicolas Batum", :Pos "SF", :Sal "6900", :Proj "14.2"} 31.1 36
+ {:name "Terrence Jones", :Pos "PF", :Sal "4400", :Proj "10.5"} 18.5 37
+ {:name "Kevin Love", :Pos "PF", :Sal "6900", :Proj "18.0"} 33 39
+ {:name "Mason Plumlee", :Pos "C", :Sal "5300", :Proj "9.7"} 24 44
+)
+Team: 60000
+
+                                                                                FPPG      Projection
+	PG	Westbrook, Russell	OKC	CHA	37	$10,500	47.9	4.56	17.5%			24.23       22.6	43
+    PG	Payton, Elfrid	ORL	PHI	33	$5,700	29.8	5.22	9.5%				10.92		12.1	36
+	SG	Harden, James	HOU	DET	36	$9,300	41.8	4.49	15.5%				27.47		25.9	43 
++	SG	Williams, Louis	LAL	SAC	32	$5,800	30	5.17	9.7%					15.54		18.7	35
+	SF	Harris, Tobias	ORL	PHI	37	$5,600	32.9	5.88	9.3%				13.45		13.0	40
+	SF	Muhammad, Shabazz	MIN	@DAL	27	$3,800	23.5	6.18	6.3%		9.51		10.7	43
+	PF	Gibson, Taj	CHI	GSW	34	$4,900	27.7	5.66	8.2%					7.68		8.1		40
+	PF	Patterson, Patrick	TOR	BOS	31	$3,700	22.2	6.01	6.2%			6.39		7.0		34
+	C	Cousins, DeMarcus	SAC	@LAL	36	$10,700	50.6	4.73	17.8%		25.88		24.9	32
+
+
+	Mine:
+						FPPG
+	PG Kemba Walker		35
+	PG Reggie Jackson	32.9
+	SG Louis Williams	26.5
+	SG DeMar DeRozan	34.9	
+	SF Andrew Wiggins	28.6
+	SF Nicolas Batum	31.1
+	PF Terrence Jones	18.5
+	PF Kevin Love		33
+	C Mason Plumlee		24
+						264.9
+
+
+	Number 1
+							FPPG
+	PG Russell Westbrook	48.5 
+	PG Deron Williams		26.5
+	SG James Harden			44.2
+	SG Wesley Matthews		20.5
+	SF Tobias Harris		27
+	SF Shabazz Muhammad		13.4
+	PF Frank Kaminsky		15.6
+	PF Taj Gibson			20
+	C DeMarcus Cousins		45
+							260.7
+
