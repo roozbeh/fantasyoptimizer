@@ -4,6 +4,7 @@
                  [org.clojure/data.csv "0.1.3"]
                  [org.clojure/math.combinatorics "0.1.1"]
                  [enlive "1.1.6"]
+                 [org.jacop/jacop "3.2"]
                 ]
 
   :main rz.optimizer
