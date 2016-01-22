@@ -7,6 +7,8 @@
             [net.cgrand.enlive-html :as html]
             [rz.projection :as proj]
             [rz.data :as data]
+            [clocop.constraints :as cs]
+            [clocop.core :as clocop]
             )
   (:gen-class))
 
@@ -173,3 +175,67 @@
 (defn -main
   [& args]
   (optimize-lineup))
+
+
+;(defn magic-series
+;  [N]
+;  (with-store (store)
+;              (let [L (vec (for [i (range N)]
+;                             (int-var (str i) 0 N)))] ; initialize L to be a vector of vars
+;                (doseq [i (range N)]
+;                  (constrain! ($= ($occurrences L i)
+;                                  (nth L i)))) ; L[i] = # of times i occurs in L
+;
+;                ; This is a redundant constraint, i.e. a constraint that doesn't change the feasibility of the problem
+;                ; but makes the solving faster: summation(i=0..N | i * L[i]) = N. (Think about it!)
+;                (constrain! ($= ($weighted-sum L (range N)) N))
+;
+;                (let [solved (solve!)]
+;                  (map solved (map str (range 0 N)))))))
+
+(defn player-desc
+  [p]
+  (str (:Position p) " " (:name p) " " (:Salary p)))
+
+(defn role-vars
+  [role L]
+  (loop [index 0
+         players players-data
+         rL []]
+    (if (empty? players)
+      rL
+      (recur (inc index)
+             (rest players)
+             (if (= (:Position (first players)) role)
+                (conj rL (nth L index))
+                rL)))))
+
+(defn- players-scores
+  []
+  (map #(- (int (* 100 (:roto-wire-projection %)))) players-data))
+
+(defn new-optimize
+  []
+  (let [N (count players-data)]
+    (clocop/with-store (clocop/store)
+                (let [L (vec (for [i (range N)]
+                               (clocop/int-var (player-desc (nth players-data i)) 0 1)))]
+                  (clocop/constrain! (cs/$= 9 (apply cs/$+ L)))
+
+                  (clocop/constrain! (cs/$= 2 (apply cs/$+ (role-vars "PG" L))))
+                  (clocop/constrain! (cs/$= 2 (apply cs/$+ (role-vars "SG" L))))
+                  (clocop/constrain! (cs/$= 2 (apply cs/$+ (role-vars "SF" L))))
+                  (clocop/constrain! (cs/$= 2 (apply cs/$+ (role-vars "PF" L))))
+
+
+
+                  (clocop/constrain! (cs/$>= *team-salary*
+                                             (cs/$weighted-sum L (map :Salary players-data))))
+
+                  (println "Starting solver . . .")
+                  (let [solved (clocop/solve!
+                                 :minimize (cs/$weighted-sum L (players-scores))
+                                 :timeout 1800
+                                 :log? true)]
+                    (keys (filter #(= (val %) 1) solved))
+                     )))))
