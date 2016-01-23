@@ -7,7 +7,7 @@
             [rz.projection :as proj]
              ))
 
-(def players-csv "fantasy_players_nba_jan_21.csv")
+(def players-csv "../fantasy_players_nba_jan_21.csv")
 (def projections-csv "projections.csv")
 ;(read-json-data "src/server/fantasy_players.csv")
 ;(util/read-csv-with-reader players-csv)
