@@ -7,13 +7,17 @@
             [rz.projection :as proj]
              ))
 
-(def players-csv "../fantasy_players_nba_jan_21.csv")
-(def projections-csv "projections.csv")
+;(def players-csv "../data/dk_nba_jan_23.csv")
+
+(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
+
+
+;(def projections-csv "projections.csv")
 ;(read-json-data "src/server/fantasy_players.csv")
 ;(util/read-csv-with-reader players-csv)
 
 
-(defn- fix-pdata-keywords
+(defn- fix-pdata-keywords-fanduel
   [pdatas]
   (map (fn [p]
          (assoc p :name   (str ((keyword "First Name") p) " " ((keyword "Last Name") p))
@@ -23,6 +27,15 @@
        pdatas))
 
 
+(defn- fix-pdata-keywords-draftking
+  [pdatas]
+  (map (fn [p]
+         (assoc p :name   (:Name p)
+                  :injury ""
+                  :Salary (read-string (:Salary p))
+                  :FPPG (read-string (:AvgPointsPerGame p))))
+       pdatas))
+
 (defn init-players-data
   []
   (let [data (with-open [in-file (io/reader players-csv)]
@@ -30,16 +43,24 @@
                  (csv/read-csv in-file)))
         header (first data)
         label-rec (fn [r] (zipmap (map keyword header) r))]
-    (fix-pdata-keywords (map label-rec (rest data)))))
+      (map label-rec (rest data))))
 
-(defn init-projection-data
+(defn init-players-data-fanduel
   []
-  (let [data (with-open [in-file (io/reader projections-csv)]
-               (doall
-                 (csv/read-csv in-file)))
-        header (first data)
-        label-rec (fn [r] (zipmap (map keyword header) r))]
-    (map label-rec (rest data))))
+  (fix-pdata-keywords-fanduel (init-players-data)))
+
+(defn init-players-data-draftking
+  []
+  (fix-pdata-keywords-draftking (init-players-data)))
+
+;(defn init-projection-data
+;  []
+;  (let [data (with-open [in-file (io/reader projections-csv)]
+;               (doall
+;                 (csv/read-csv in-file)))
+;        header (first data)
+;        label-rec (fn [r] (zipmap (map keyword header) r))]
+;    (map label-rec (rest data))))
 
 (defn add-projection
   [player-data projection-data]
@@ -56,8 +77,8 @@
 
 
 (defn add-rotowires-projection
-  [players-data]
-  (let [rotowires-data (proj/get-rotowires-projections)]
+  [players-data contest-provider]
+  (let [rotowires-data (proj/get-rotowires-projections contest-provider)]
     (map (fn [p]
            (let [projection (filter (fn [pd] (re-find (re-pattern  (str (:name p) ".*"))
                                                       (:title pd)))  rotowires-data)]
@@ -65,7 +86,7 @@
                 (do
                   (println (str "ERROR Could not find projection for " (:name p)))
                   (assoc p
-                    :roto-wire-projection (:FPPG p)
+                    :roto-wire-projection 0
                     :roto-wire-value (/ (* 1000 (:FPPG p)) (:Salary p)))
                   )
                 (do
