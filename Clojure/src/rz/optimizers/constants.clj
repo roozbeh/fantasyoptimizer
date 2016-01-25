@@ -12,3 +12,4 @@
 (def ^:dynamic *db-name* "fantasy")
 (def ^:dynamic *collection* "players")
 
+(def ^:dynamic *average-games-count* 3)

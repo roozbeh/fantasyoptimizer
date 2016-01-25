@@ -5,9 +5,12 @@
             [clojure.math.combinatorics :as combo]
             [net.cgrand.enlive-html :as html]
             [rz.projection :as proj]
-             ))
+            [rz.optimizers.constants :as c]
+            [monger.collection :as mc]
+            [incanter.stats :refer :all]
+            [rz.optimizers.utils :as utils]))
 
-(def players-csv "../data/dk_nba_jan_23.csv")
+(def players-csv "../data/dk_nba_jan_25.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
 
@@ -120,3 +123,25 @@
    :C  (role-cnt body "C")
    })
 
+
+(defn add-linear-projection
+  [db players-data]
+  (doall
+    (map (fn [{:keys [Name] :as pinfo}]
+           (let [player (mc/find-one-as-map db c/*collection* {:Name Name})
+                 {:keys [teamAbbrev GameInfo rotogrinder-events]} player
+                 is-home-game (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo))
+                 pts-same-home (utils/nil->zero
+                                 (:draftking-fpts (last (sort-by :game-epoch
+                                                                 (filter #(= is-home-game (:home-game %)) rotogrinder-events)))))
+                 avg-games-pts (utils/array->mean
+                                 (take c/*average-games-count*
+                                       (map (comp utils/nil->zero :draftking-fpts)
+                                            (sort-by :game-epoch rotogrinder-events))))
+                 last-mins (utils/nil->zero2 (:mins (last (sort-by :game-epoch rotogrinder-events))))]
+             ;proj = -0.0845 + 0.1623*(nil->zero pts-same-home) + 0.5988*avg-games-pts + 0.2201 * last-mins
+             (assoc pinfo :my-projection (+ -0.0845
+                                             (* 0.1623 pts-same-home)
+                                             (* 0.5988 avg-games-pts)
+                                             (* 0.2201 last-mins)))))
+         players-data)))

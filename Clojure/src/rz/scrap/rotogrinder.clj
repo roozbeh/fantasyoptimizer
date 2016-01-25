@@ -37,7 +37,7 @@
 
 (defn init-players
   [db]
-  (create-players db (add-first-list (data/init-players-data))))
+  (create-players db (add-first-list (data/init-players-data-draftking))))
 
 (defn get-rotogrinder-id-name
   [db]
@@ -56,17 +56,21 @@
                                   :rotogrinder-name (:name data))))
            (catch Exception e (println (str "ERROR: Could not find info for " (:Name p))))))
        (mc/find-maps db c/*collection* {:rotogrinder-id nil})))
-  (for [[id name] [[18937 "Karl-Anthony Towns"]
-                   [16800 "Michael Carter-Williams"]
-                   [16869 "Kentavious Caldwell-Pope"]
-                   [1279 "Al-Farouq Aminu"]
-                   [18951 "Willie Cauley-Stein"]
-                   [31805 "Bryce Dejean-Jones"]
-                   [13896 "Michael Kidd-Gilchrist"]
-                   [18951 "Cauley-Stein"]]]
-    (mc/update db c/*collection* {:Name name}
-               (assoc (mc/find-one-as-map db c/*collection* {:Name name})
-                 :rotogrinder-id id))))
+  (doall
+    (for [[id name] [[18937 "Karl-Anthony Towns"]
+                     [16800 "Michael Carter-Williams"]
+                     [16869 "Kentavious Caldwell-Pope"]
+                     [1279 "Al-Farouq Aminu"]
+                     [18951 "Willie Cauley-Stein"]
+                     [31805 "Bryce Dejean-Jones"]
+                     [13896 "Michael Kidd-Gilchrist"]
+                     [18951 "Cauley-Stein"]
+                     [18956 "T McConnell"]
+                     [18626 "Danté Exum"]
+                     [ "Luc Moute"]]]
+      (mc/update db c/*collection* {:Name name}
+                 (assoc (mc/find-one-as-map db c/*collection* {:Name name})
+                   :rotogrinder-id id)))))
 
 ;draftkng -> data-side-id = 20
 
@@ -86,8 +90,9 @@
                 ret (utils/fetch-url url)
                 stats-data (json/read-str (-> ret first :content first :content first) :key-fn keyword)]
             (add-data-to-player db Name :rotogrinder-events
-              (map (fn [[event-id {:keys [data]}]]
-                   (let [{:keys [player fantasy_points stats schedule team_id]} data
+              (doall
+                (map (fn [[event-id {:keys [data]}]]
+                   (let [{:keys [player fantasy_points stats schedule team_id game_stat_mappings]} data
                          {:keys [collection]} fantasy_points
                          team_id (read-string team_id)
                          home-team-id (-> schedule :data :team_home :data :id)
@@ -100,12 +105,12 @@
                       :game-date game-date
                       :game-epoch (.getTime (.parse (SimpleDateFormat. "MM/dd/yy") game-date))
                       :team team_id
+                      :mins (:min game_stat_mappings)
                       :home-game (= team_id home-team-id)}))
-               stats-data)))
+               stats-data))))
             (catch Exception e
               (println (str "ERROR in updating " Name " data, Exception: " e)))))
-    (mc/find-maps db c/*collection* {})))
-
+    (mc/find-maps db c/*collection* {:rotogrinder-events nil})))
 
 
 (defn ingest-data
@@ -114,6 +119,4 @@
     (init-players db)
     (get-rotogrinder-id-name db)
     (get-rotogrinder-data db)))
-
-
 
