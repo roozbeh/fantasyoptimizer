@@ -7,9 +7,9 @@
             [rz.projection :as proj]
              ))
 
-;(def players-csv "../data/dk_nba_jan_23.csv")
+(def players-csv "../data/dk_nba_jan_23.csv")
 
-(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
+;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
 
 
 ;(def projections-csv "projections.csv")
@@ -44,6 +44,7 @@
         header (first data)
         label-rec (fn [r] (zipmap (map keyword header) r))]
       (map label-rec (rest data))))
+
 
 (defn init-players-data-fanduel
   []

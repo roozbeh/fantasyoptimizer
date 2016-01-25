@@ -12,7 +12,8 @@
 
 (defonce players-data
          (data/add-rotowires-projection
-           (filter #(not (= "O" (:injury %))) (data/init-players-data))))
+           (filter #(not (= "O" (:injury %))) (data/init-players-data))
+           constaints/*fanduel*))
 
 (def ^:dynamic *problem-file*  "/Users/roozbeh/Documents/FantasyOptimizer/fantasy.problem")
 (def ^:dynamic *cpplex-solver-binary* "../Solver/cpplex/build/main")

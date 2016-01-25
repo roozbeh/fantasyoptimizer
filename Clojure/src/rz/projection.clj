@@ -3,10 +3,8 @@
             [clojure.data.csv :as csv]
             [clojure.pprint :as pp]
             [net.cgrand.enlive-html :as html]
-            [rz.optimizers.constants :as constants]))
-
-(defn fetch-url [url]
-  (html/html-resource (java.net.URL. url)))
+            [rz.optimizers.constants :as constants]
+            [rz.optimizers.utils :as utils]))
 
 
 (comment
@@ -34,7 +32,7 @@
   (let [url (if (= contest-provider constants/*fanduel*)
               "http://www.rotowire.com/daily/nba/optimizer.htm"
               "http://www.rotowire.com/daily/nba/optimizer.htm?site=DraftKings")
-        data (fetch-url url)
+        data (utils/fetch-url url)
         players (html/select data [:table#PlayersTable :tr])]
     (map (fn [p]
            (let [pdata (html/select p [:td])]

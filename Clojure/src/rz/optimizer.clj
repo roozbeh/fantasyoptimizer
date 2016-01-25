@@ -10,10 +10,13 @@
             [clojure.java.shell :as shell]
             [rz.optimizers.genetic :as genetic]
             [rz.optimizers.cpplex :as cpplex]
-            )
+            [rz.optimizers.constants :as constants]
+            [rz.scrap.rotogrinder :as rotoscrap]
+            [rz.model.linear :as model])
   (:gen-class))
 
-(defonce players-data (data/add-rotowires-projection (data/init-players-data)))
+(defonce players-data (data/add-rotowires-projection (data/init-players-data)
+                                                     constants/*fanduel*))
 
 
 

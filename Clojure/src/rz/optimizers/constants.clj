@@ -8,3 +8,7 @@
 
 (def ^:dynamic *fanduel* "fanduel" )
 (def ^:dynamic *draftking* "draftking" )
+
+(def ^:dynamic *db-name* "fantasy")
+(def ^:dynamic *collection* "players")
+

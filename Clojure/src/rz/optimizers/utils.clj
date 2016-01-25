@@ -1,5 +1,9 @@
 (ns rz.optimizers.utils
-  (:require [clojure.pprint :as pp]))
+  (:require [clojure.pprint :as pp]
+            [net.cgrand.enlive-html :as html]
+            [rz.optimizers.constants :as c]
+            [monger.core :as mg]
+            [monger.collection :as mc]))
 
 (defn- get-total
   [team]
@@ -39,4 +43,11 @@
   (println (str "Team Sum FPPG: " (reduce + (map :FPPG (vals team)))))
   (println (str "Team Sum Projection: " (reduce + (map :roto-wire-projection (vals team)))))
   )
+
+(defn fetch-url [url]
+  (html/html-resource (java.net.URL. url)))
+
+(defn get-db  []
+  (mg/get-db (mg/connect) c/*db-name*))
+
 

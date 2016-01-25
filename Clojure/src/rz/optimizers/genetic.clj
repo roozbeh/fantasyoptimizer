@@ -5,7 +5,7 @@
             [rz.optimizers.utils :as utils]))
 
 
-(defonce players-data (data/add-rotowires-projection (data/init-players-data)))
+(defonce players-data (data/add-rotowires-projection (data/init-players-data) constaints/*fanduel*))
 
 (def ^:dynamic *salary-penalty* -1000000 )
 (def ^:dynamic *equal-penalty* -1000000 )
