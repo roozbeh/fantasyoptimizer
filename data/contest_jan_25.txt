@@ -1,0 +1,36 @@
+First:
+
+PG	Mike Conley	10.2%	
+ORL 102 MEM 108 
+Final
+6 REB, 1 3PM, 9 AST, 1 BLK, 2 STL, 1 TO, 12 PTS	39
+SG	Avery Bradley	21.5%	
+BOS 116 WAS 91 
+Final
+2 REB, 1 3PM, 3 AST, 2 STL, 1 TO, 11 PTS	22
+SF	Trevor Ariza	18.2%	
+HOU 112 NO 111 
+Final
+5 REB, 8 3PM, 3 AST, 1 BLK, 3 STL, 3 TO, 31 PTS	52.25
+PF	Marvin Williams	15.6%	
+CHA 129 SAC 128 
+Final
+5 REB, 3 3PM, 3 AST, 1 BLK, 1 STL, 1 TO, 21 PTS	36.75
+C	Nikola Jokic	7.2%	
+ATL 119 DEN 105 
+Final
+10 REB, 3 AST, 1 BLK, 2 STL, 15 PTS, 1 DDbl	39.5
+G	Jrue Holiday	5.4%	
+HOU 112 NO 111 
+Final
+6 REB, 2 3PM, 9 AST, 3 STL, 4 TO, 32 PTS	58
+F	DeMarcus Cousins	24.3%	
+CHA 129 SAC 128 
+Final
+12 REB, 1 3PM, 4 AST, 2 BLK, 1 STL, 7 TO, 56 PTS, 1 DDbl	81.5
+UTIL	Zach Randolph	6.0%	
+ORL 102 MEM 108 
+Final
+13 REB, 1 AST, 2 TO, 18 PTS, 1 DDbl	36.25
+
+
