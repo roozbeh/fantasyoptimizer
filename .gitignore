@@ -4,3 +4,8 @@ svm_test_file
 svm_test_file_unscaled
 svm_train_file
 svm_train_file_unscaled
+fantasy.mps
+fantasy.problem
+Clojure/.nrepl-port
+Clojure/target
+Regression/libsvm/svm.o
