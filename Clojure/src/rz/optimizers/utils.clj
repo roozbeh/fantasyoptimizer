@@ -6,39 +6,57 @@
             [incanter.stats :refer :all]
             [monger.collection :as mc]))
 
-(defn- get-total
-  [team]
-  [
-   {:name "Total"
-    :Position ""
-    :Salary (reduce + (map :Salary team))
-    :FPPG (reduce + (map :FPPG team))
-    :Proj (reduce + (map :my-projection team))
-    :Value (/ (reduce + (map :my-projection team)) (count team))
-    }
-   ])
-
 (defn get-db  []
   (mg/get-db (mg/connect) c/*db-name*))
 
-(defn print-team2
+(defn calc-team-stats
   [team]
-  (pp/print-table
-    (map (fn [{:keys [name Position Salary roto-wire-projection roto-wire-value FPPG injury my-projection teamAbbrev GameInfo]}]
-           {:name name
+  (map (fn [{:keys [Name IsHome Position Salary roto-wire-projection FPPG injury my-projection teamAbbrev GameInfo]}]
+         (let [db-player (mc/find-one-as-map (get-db) c/*collection* {:Name Name})
+               events (sort-by :game-epoch (:rotogrinder-events db-player))
+               last-event (last events)
+               by-last (first (take-last 2 events))
+               ]
+           {:name Name
             :Pos Position
             :Sal Salary
             :FPPG FPPG
             :Proj (format "%02.2f" my-projection)
-            ;:Roto roto-wire-projection
-            :LastGame (:draftking-fpts
-                        (last (sort-by :game-epoch
-                                       (:rotogrinder-events (mc/find-one-as-map (get-db) c/*collection* {:Name name})))))
-            :Home (if (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo)) "YES " "")
+            :Roto roto-wire-projection
+            :LastGame (:draftking-fpts last-event)
+            :IsHome IsHome
+            ;(str "G " (:game-date last-event))
+
+            ;      (str (:draftking-fpts last-event) " " (if (:home-game last-event) "H" "A"))
+            ;:Home (if (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo)) "YES " "")
             :injury injury
-            } )
-         team))
-  (pp/print-table (get-total team)))
+            }))
+       (sort-by :Position team)))
+
+(defn calc-totals
+  [stated-team]
+
+  (let
+    [tkeys (filter #(not (contains? #{:name :Pos :IsHome :injury} %)) (keys (first stated-team)))]
+       (assoc (apply array-map
+         (flatten
+           (for [key tkeys]
+             (do
+               [key (reduce +
+                          (map #(if (nil? (get % key))
+                                  0
+                                  (if (string? (get % key))
+                                    (read-string (get % key))
+                                    (get % key)))
+                               stated-team))]))))
+         :name "Total")))
+
+(defn print-team2
+  [team]
+  (let [stated-team (calc-team-stats team)]
+    (pp/print-table
+        (concat stated-team
+                [(calc-totals stated-team)]))))
 
 (defn print-team
   [team]
@@ -74,4 +92,8 @@
   (if (nil? x)
     0
     x))
+
+(defn bool->int
+  [x]
+  (if x 1 0))
 

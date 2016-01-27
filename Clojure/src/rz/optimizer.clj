@@ -10,37 +10,28 @@
             [clojure.java.shell :as shell]
             [rz.optimizers.genetic :as genetic]
             [rz.optimizers.cpplex :as cpplex]
-            [rz.optimizers.constants :as constants]
+            [rz.optimizers.constants :as c]
+            [rz.optimizers.coinmp :as coinmp]
             [rz.scrap.rotogrinder :as rotoscrap]
-            [rz.model.linear :as model])
+            [rz.model.linear :as linear]
+            [rz.model.svm :as svm]
+            [rz.optimizers.utils :as utils])
   (:gen-class))
 
-(defonce players-data (data/add-rotowires-projection (data/init-players-data)
-                                                     constants/*fanduel*))
 
-
-
-(defn- get-player
-  [name]
-  (first (filter (fn [p] (re-find (re-pattern (str name ".*")) (:name p))) players-data)))
-
-(defn get-team
+(defn- optimize-fanduel-lineups
   []
-  {
-   :PG1 (get-player "Brandon Knight")
-   :PG2 (get-player "Jeff Teague")
-   :SG1 (get-player "Devin Booker")
-   :SG2 (get-player "Kyle Korver")
-   :SF1 (get-player "LeBron James")
-   :SF2 (get-player "P.J. Tucker")
-   :PF1 (get-player "Anthony Davis")
-   :PF2 (get-player "Kevin Love")
-   :C (get-player "Marc Gasol")})
-
-(comment
-  (print-team (get-team))
+  (rotoscrap/ingest-data c/*fanduel*)
+  (let [db (utils/get-db)
+        players-data (data/init-players-data-fanduel)
+        coefs (linear/create-model db c/*fanduel*)
+        players-proj (linear/add-linear-projection db players-data coefs c/*fanduel*)]
+    (pp/pprint (map #(list (:Name %) (:my-projection %)) players-proj))
+    (coinmp/lpsolve-solve-fanduel players-proj)
+    )
+  ;(svm/create-svm-model (utils/get-db))
+  ;(coinmp/)
   )
-
 
 (defn -main
   [& args]

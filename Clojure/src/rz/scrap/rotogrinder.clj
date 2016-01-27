@@ -14,8 +14,10 @@
 (import java.text.SimpleDateFormat)
 
 
+;draftkng -> data-side-id = 20
 
 (def ^:dynamic *rotogrind-draftking-id* "20")
+(def ^:dynamic *rotogrind-fanduel-id* "2")
 
 (defn add-first-list
   [players]
@@ -36,8 +38,11 @@
 
 
 (defn init-players
-  [db]
-  (create-players db (add-first-list (data/init-players-data-draftking))))
+  [db content-provider]
+  (create-players db (add-first-list
+                       (if (= content-provider c/*draftking*)
+                         (data/init-players-data-draftking)
+                         (data/init-players-data-fanduel)))))
 
 (defn get-rotogrinder-id-name
   [db]
@@ -67,12 +72,12 @@
                      [18951 "Cauley-Stein"]
                      [18956 "T McConnell"]
                      [18626 "Danté Exum"]
-                     [ "Luc Moute"]]]
+                     [16846 "Phil (Flip) Pressey"]
+                     ]]
       (mc/update db c/*collection* {:Name name}
                  (assoc (mc/find-one-as-map db c/*collection* {:Name name})
                    :rotogrinder-id id)))))
 
-;draftkng -> data-side-id = 20
 
 (defn add-data-to-player
   [db name key value]
@@ -97,10 +102,13 @@
                          team_id (read-string team_id)
                          home-team-id (-> schedule :data :team_home :data :id)
                          dk-stats (first (filter #(= *rotogrind-draftking-id* (-> % second :data :site_id)) collection))
-                         fpts (-> dk-stats second :data :value)
+                         dk-fpts (-> dk-stats second :data :value)
+                         fd-stats (first (filter #(= *rotogrind-fanduel-id* (-> % second :data :site_id)) collection))
+                         fd-fpts (-> fd-stats second :data :value)
                          [game-date game-time] (string/split (-> schedule :data :time) #" ")]
                      {:event-id event-id
-                      :draftking-fpts fpts
+                      :draftking-fpts dk-fpts
+                      :fanduel-fpts fd-fpts
                       :game-timestamp (-> schedule :data :time)
                       :game-date game-date
                       :game-epoch (.getTime (.parse (SimpleDateFormat. "MM/dd/yy") game-date))
@@ -114,9 +122,9 @@
 
 
 (defn ingest-data
-  []
+  [content-provider]
   (let [db (utils/get-db)]
-    (init-players db)
+    (init-players db content-provider)
     (get-rotogrinder-id-name db)
     (get-rotogrinder-data db)))
 

@@ -1,91 +1,232 @@
 (ns rz.model.linear
   (:require [monger.core :as mg]
             [monger.collection :as mc]
+            [monger.operators :refer :all]
             [clojure.string :as string]
             [clojure.pprint :as pp]
             [rz.optimizers.constants :as c]
             [incanter.stats :refer :all]
             [rz.optimizers.utils :as utils]
+            [clojure.java.shell :as shell]
             ))
 
 
+;(defn prepare-data-for-regression
+;  [db]
+;  (doall
+;    (map
+;      (fn [{:keys [Name rotogrinder-events teamAbbrev]}]
+;        (let [
+;              ;event-23 (first (filter #(= "1/23/16" (:game-date %)) rotogrinder-events))
+;              event-23 (last (sort-by :game-epoch rotogrinder-events))
+;              event-last (first (take-last 2 (sort-by :game-epoch rotogrinder-events)))
+;              same-home-event (first
+;                                (take-last 2 (sort-by :game-epoch
+;                                                    (filter #(= (:home-game event-23) (:home-game %)) rotogrinder-events))))
+;              avg-last-games (utils/array->mean (take c/*average-games-count*
+;                                                  (map (comp utils/nil->zero :draftking-fpts)
+;                                                       (butlast (sort-by :game-epoch rotogrinder-events)))))
+;              avg-last-games-same (utils/array->mean
+;                                      (take c/*average-games-count*
+;                                            (map (comp utils/nil->zero :draftking-fpts)
+;                                                 (butlast (sort-by :game-epoch
+;                                                                   (filter #(= (:home-game event-23) (:home-game %))
+;                                                                           rotogrinder-events))))))]
+;          {:Name Name
+;           :home-23 (get event-23 :home-game -1)
+;           :pts-23 (get event-23 :draftking-fpts -1)
+;           :home-last (get event-last :home-game -1)
+;           :pts-last (get event-last :draftking-fpts -1)
+;           :home-same-home (get same-home-event :home-game -1)
+;           :pts-same-home (get same-home-event :draftking-fpts -1)
+;           :avg-games-pts avg-last-games
+;           :avg-games-pts-same avg-last-games-same
+;           :team teamAbbrev
+;           :last-mins (utils/nil->zero2 (:mins event-last))
+;           }))
+;      (mc/find-maps db c/*collection* {}))))
+;
+;
+;(defn filter-23
+;  [players]
+;  (filter #(and (not (= -1 (:pts-23 %)))
+;                (not (= 0 (utils/nil->zero (:pts-23 %))))
+;                (not (= 0 (utils/nil->zero (:pts-same-home %))))
+;                (not (= 0 (utils/nil->zero (:pts-last %))))
+;                (not (<= 10 (utils/nil->zero (:pts-last %))))
+;                )
+;          players))
+;
+;
+;(defn create-array-for-regression
+;  [data]
+;  (map (fn [{:keys [Name home-23 home-last pts-last pts-23 home-same-home pts-same-home avg-games-pts
+;                    avg-games-pts-same team last-mins ] :as d}]
+;         [
+;          ;Name
+;          ;(utils/nil->zero pts-same-home)
+;          ;(utils/nil->zero pts-last)
+;          avg-games-pts
+;          avg-games-pts-same
+;          (utils/bool->int home-23)
+;          ;last-mins
+;          ;(+ -0.0845
+;          ;   (* 0.1623 (utils/nil->zero pts-same-home))
+;          ;   (* 0.5988 avg-games-pts)
+;          ;   (* 0.2201 last-mins))
+;          (utils/nil->zero pts-23)])
+;       data))
+;(nil->zero pts-same-home) avg-games-pts last-mins
+
+;(defn draw-data
+;  [db]
+;  (let [points (create-array-for-regression (filter-23 (prepare-data-for-regression db)))
+;        x (map #(nth % 0) points)
+;        last-score (map last points)
+;        ]
+;    (view (scatter-plot x last-score :legend true))
+;  ))
 
 
+(defn data-from-events
+  [Name event-current events ftps-keyword]
+  (let [event-last (last events)
+        home-events (filter #(= true (:home-game %)) events)
+        away-events (filter #(= false (:home-game %)) events)
+        last-home-event (last home-events)
+        last-away-event (last away-events)
+        avg-last-games (utils/array->mean (take-last c/*average-games-count*
+                                                (map (comp utils/nil->zero ftps-keyword)
+                                                     events)))
 
-(defn prepare-data-for-regression
-  [db]
-  (doall
+        avg-last-home-games (utils/array->mean (take-last c/*average-games-count*
+                                                     (map (comp utils/nil->zero ftps-keyword)
+                                                          home-events)))
+
+        avg-last-away-games (utils/array->mean (take-last c/*average-games-count*
+                                                     (map (comp utils/nil->zero ftps-keyword)
+                                                          away-events)))]
+    {:Name Name
+     :last-event-mins (utils/nil->zero2 (:mins event-last))
+     :last-event-pts (utils/nil->zero (ftps-keyword event-last))
+
+     :last-home-event-mins (utils/nil->zero2 (:mins last-home-event))
+     :last-home-event-pts (utils/nil->zero (ftps-keyword last-home-event))
+
+     :last-away-event-mins (utils/nil->zero2 (:mins last-away-event))
+     :last-away-event-pts (utils/nil->zero (ftps-keyword last-away-event))
+
+     :avg-last-games avg-last-games
+     :avg-last-home-games avg-last-home-games
+     :avg-last-away-games avg-last-away-games
+
+     :current-home (get event-current :home-game -1)
+     :event-cnt (count events)
+
+     :home-events home-events
+     :away-events away-events
+
+     ;label -> only for train
+     :pts-current (get event-current ftps-keyword -1)
+     }))
+
+(defn train-data-from-events
+  [Name sorted-events ftps-keyword]
+  (let [event-current (last sorted-events)
+        events (butlast sorted-events)]
+    (data-from-events Name event-current events ftps-keyword)))
+
+(defn predict-data-from-events
+  [Name sorted-events ftps-keyword]
+  (data-from-events Name {:home-game -1 ftps-keyword -1} sorted-events ftps-keyword))
+
+(defn prepare-data-for-regression-recursive
+  [db ftps-keyword]
+  (flatten
     (map
       (fn [{:keys [Name rotogrinder-events teamAbbrev]}]
-        (let [
-              ;event-23 (first (filter #(= "1/23/16" (:game-date %)) rotogrinder-events))
-              event-23 (last (sort-by :game-epoch rotogrinder-events))
-              event-last (first (take-last 2 (sort-by :game-epoch rotogrinder-events)))
-              same-home-event (first
-                                (take-last 2 (sort-by :game-epoch
-                                                    (filter #(= (:home-game event-23) (:home-game %)) rotogrinder-events))))
-              avg-last-games (array->mean (take c/*average-games-count*
-                                                  (map (comp nil->zero :draftking-fpts)
-                                                       (butlast (sort-by :game-epoch rotogrinder-events)))))
-              avg-last-games-same (array->mean
-                                      (take c/*average-games-count*
-                                            (map (comp nil->zero :draftking-fpts)
-                                                 (butlast (sort-by :game-epoch
-                                                                   (filter #(= (:home-game event-23) (:home-game %))
-                                                                           rotogrinder-events))))))]
-          {:Name Name
-           :home-23 (get event-23 :home-game -1)
-           :pts-23 (get event-23 :draftking-fpts -1)
-           :home-last (get event-last :home-game -1)
-           :pts-last (get event-last :draftking-fpts -1)
-           :home-same-home (get same-home-event :home-game -1)
-           :pts-same-home (get same-home-event :draftking-fpts -1)
-           :avg-games-pts avg-last-games
-           :avg-games-pts-same avg-last-games-same
-           :team teamAbbrev
-           :last-mins (nil->zero2 (:mins event-last))
-           }))
-      (mc/find-maps db c/*collection* {}))))
+        (let [sorted-events (sort-by :game-epoch rotogrinder-events)
+              butlast-events (butlast sorted-events)
+              home-events (filter #(= true (:home-game %)) butlast-events)
+              away-events (filter #(= false (:home-game %)) butlast-events)
+              iterations-cnt (- (min (count home-events) (count away-events)) c/*average-games-count*)]
+          (loop [iteration 0
+                 events sorted-events
+                 result []]
+            (if (> iteration iterations-cnt)
+              result
+              (recur (inc iteration) (butlast events) (conj result (train-data-from-events Name events ftps-keyword)))))))
+      (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} } }))))
 
 
 (defn filter-23
   [players]
-  (filter #(not (= -1 (:pts-23 %)))
+  (filter #(and (not (= -1 (:pts-current %))))
           players))
-
-
-(defn bool->int
-  [x]
-  (if x 1 0))
 
 (defn create-array-for-regression
   [data]
-  (map (fn [{:keys [Name home-23 home-last pts-last pts-23 home-same-home pts-same-home avg-games-pts
-                    avg-games-pts-same team last-mins ] :as d}]
+  (map (fn [{:keys [pts-current last-event-mins last-event-pts last-home-event-mins
+                    last-home-event-pts last-away-event-mins last-away-event-pts
+                    avg-last-games avg-last-home-games avg-last-away-games avg-last-away-games
+                    current-home event-cnt  home-events away-events] :as d}]
          [
-          ;Name
-          (nil->zero pts-same-home)
-          ;(nil->zero pts-last)
-          avg-games-pts
-          ;avg-games-pts-same
-          ;(bool->int home-23)
-          last-mins
-          (nil->zero pts-23)])
+          last-home-event-pts
+          last-home-event-mins
+          avg-last-away-games
+          event-cnt
+
+          ;last-event-pts
+          ;avg-last-home-games
+          ;avg-last-games
+          ;last-away-event-pts
+          ;last-away-event-mins
+          ;last-event-mins
+          ;(utils/bool->int current-home)
+
+          (utils/nil->zero pts-current)])
        data))
 
-
 (defn create-model
-  [db]
-  (let [points (create-array-for-regression (filter-23 (prepare-data-for-regression db)))
+  [db contest-provider]
+  (let [ftps-keyword (if (= contest-provider c/*fanduel*) :fanduel-fpts :draftking-fpts)
+        points (create-array-for-regression (filter-23 (prepare-data-for-regression-recursive db ftps-keyword)))
         ;points (take 10 points)
-        {:keys [coefs f-prob t-probs mse]} (linear-model (map last points) (map #(take 3 %) points))]
-    (println (str "f-prob: " f-prob ", mse: " mse))
+        {:keys [coefs f-prob t-probs mse r-square] :as out} (linear-model (map last points) (map #(take (dec (count (first points))) %) points))]
+    (println (str "f-prob: " f-prob ", mse: " mse ", R^2: " r-square))
     (println "t-probs")
     (pp/pprint t-probs)
     (println "coefs")
     (pp/pprint coefs)
-    ))
+    coefs))
 
+
+(defn get-projection-for-player
+  [player coefs ftps-keyword]
+  (let [{:keys [Name teamAbbrev GameInfo rotogrinder-events]} player
+        sorted-events (sort-by :game-epoch rotogrinder-events)
+        {:keys [pts-current last-event-mins last-event-pts last-home-event-mins
+                last-home-event-pts last-away-event-mins last-away-event-pts
+                avg-last-games avg-last-home-games avg-last-away-games avg-last-away-games
+                current-home event-cnt  home-events away-events] :as d}
+        (predict-data-from-events Name sorted-events ftps-keyword)]
+    (+ (nth coefs 0)
+       (* (nth coefs 1) last-home-event-pts)
+       (* (nth coefs 2) last-home-event-mins)
+       (* (nth coefs 3) avg-last-away-games)
+       (* (nth coefs 4) event-cnt))))
+
+(defn add-linear-projection
+  [db players-data coefs contest-provider]
+  (let [ftps-keyword (if (= contest-provider c/*fanduel*) :fanduel-fpts :draftking-fpts)]
+    (doall
+      (map (fn [{:keys [Name] :as pinfo}]
+             (assoc pinfo :my-projection
+                          (get-projection-for-player
+                            (mc/find-one-as-map db c/*collection* {:Name Name})
+                            coefs
+                            ftps-keyword)))
+           players-data))))
 
 ; Using pts-last home-last home-23
   ;=> nil
@@ -186,3 +327,19 @@
 ;  0.5987724591707235
 ;  0.22011035581444016)
 ; proj = -0.0845 + 0.1623*(nil->zero pts-same-home) + 0.5988*avg-games-pts + 0.2201 * last-mins
+
+
+;avg-games-pts avg-games-pts-same (bool->int home-23)
+;(create-model db)
+;f-prob: 1.9554548980060815E-8, mse: 37.8719925645785
+;t-probs
+;(0.007042632598883047
+;  2.8873167766674257E-5
+;  0.02746031258908288
+;  0.014404379055926064)
+;coefs
+;(4.941424337488041
+;  1.2113201966280724
+;  -0.5860032390414668
+;  -4.372757353697194)
+; proj = -4.9414 + 1.2113*avg-games-pts + -0.5860*avg-games-pts-same +  -4.3727 * (bool->int home-23)
