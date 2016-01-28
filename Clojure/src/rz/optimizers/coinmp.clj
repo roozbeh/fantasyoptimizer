@@ -259,13 +259,10 @@
 ;
 
 (defn lpsolve-solve-draftkings
-  []
-  (let [players-data (data/add-rotowires-projection
-                       (data/add-linear-projection (utils/get-db) (data/init-players-data-draftking))
-                       constants/*draftking*)]
-    (print-solutions
-      (lpsolve-solve-multiple constants/*team-salary-draftkings* players-data 5 c/*draftking*)
-                     players-data)))
+  [player-with-proj]
+  (print-solutions
+    (lpsolve-solve-multiple constants/*team-salary-draftkings* player-with-proj 5 c/*draftking*)
+    (data/add-rotowires-projection player-with-proj c/*draftking*)))
 
 
 

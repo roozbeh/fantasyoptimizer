@@ -35,12 +35,18 @@
 
 (defn- fix-pdata-keywords-draftking
   [pdatas]
-  (map (fn [{:keys [Salary AvgPointsPerGame teamAbbrev GameInfo] :as p}]
+  (map (fn [{:keys [Salary AvgPointsPerGame teamAbbrev GameInfo Name] :as p}]
          (assoc p :name   (:Name p)
+                  :Name (if (nil? Name)
+                          (str ((keyword "First Name") p) " " ((keyword "Last Name") p))
+                          Name)
                   :injury ""
                   :Salary (read-string Salary)
-                  :FPPG (read-string :AvgPointsPerGame)
-                  :IsHome (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo))))
+                  :FPPG (if AvgPointsPerGame
+                          (read-string AvgPointsPerGame)
+                          0)
+                  :IsHome (if (and (some? GameInfo) (some? teamAbbrev))
+                            (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo)))))
        pdatas))
 
 (defn init-players-data

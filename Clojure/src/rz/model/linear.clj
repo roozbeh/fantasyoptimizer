@@ -6,6 +6,8 @@
             [clojure.pprint :as pp]
             [rz.optimizers.constants :as c]
             [incanter.stats :refer :all]
+            [incanter.charts :as charts]
+            [incanter.core  :refer :all]
             [rz.optimizers.utils :as utils]
             [clojure.java.shell :as shell]
             ))
@@ -78,16 +80,6 @@
 ;       data))
 ;(nil->zero pts-same-home) avg-games-pts last-mins
 
-;(defn draw-data
-;  [db]
-;  (let [points (create-array-for-regression (filter-23 (prepare-data-for-regression db)))
-;        x (map #(nth % 0) points)
-;        last-score (map last points)
-;        ]
-;    (view (scatter-plot x last-score :legend true))
-;  ))
-
-
 (defn data-from-events
   [Name event-current events ftps-keyword]
   (let [event-last (last events)
@@ -149,7 +141,9 @@
               butlast-events (butlast sorted-events)
               home-events (filter #(= true (:home-game %)) butlast-events)
               away-events (filter #(= false (:home-game %)) butlast-events)
-              iterations-cnt (- (min (count home-events) (count away-events)) c/*average-games-count*)]
+              iterations-cnt (- (min (count home-events) (count away-events)) c/*average-games-count*)
+              ;iterations-cnt (max 3 iterations-cnt)
+              ]
           (loop [iteration 0
                  events sorted-events
                  result []]
@@ -227,6 +221,19 @@
                             coefs
                             ftps-keyword)))
            players-data))))
+
+
+(defn draw-data
+  [db contest-provider coefs]
+  (let [ftps-keyword (if (= contest-provider c/*fanduel*) :fanduel-fpts :draftking-fpts)
+        points (create-array-for-regression (filter-23 (prepare-data-for-regression-recursive db ftps-keyword)))
+        real-vals (map last points)
+        projection (map #(+ (nth coefs 0)
+                    (* (nth coefs 1) (nth % 0))
+                    (* (nth coefs 2) (nth % 1))
+                    (* (nth coefs 3) (nth % 2))
+                    (* (nth coefs 4) (nth % 3))) points)]
+    (view (charts/scatter-plot real-vals projection :legend true))))
 
 ; Using pts-last home-last home-23
   ;=> nil

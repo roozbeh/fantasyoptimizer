@@ -27,11 +27,17 @@
         coefs (linear/create-model db c/*fanduel*)
         players-proj (linear/add-linear-projection db players-data coefs c/*fanduel*)]
     (pp/pprint (map #(list (:Name %) (:my-projection %)) players-proj))
-    (coinmp/lpsolve-solve-fanduel players-proj)
-    )
-  ;(svm/create-svm-model (utils/get-db))
-  ;(coinmp/)
-  )
+    (coinmp/lpsolve-solve-fanduel players-proj)))
+
+(defn- optimize-draftking-lineups
+  []
+  (rotoscrap/ingest-data c/*draftking*)
+  (let [db (utils/get-db)
+        players-data (data/init-players-data-draftking)
+        coefs (linear/create-model db c/*draftking*)
+        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
+    (pp/pprint (map #(list (:Name %) (:my-projection %)) players-proj))
+    (coinmp/lpsolve-solve-draftkings players-proj)))
 
 (defn -main
   [& args]
