@@ -15,6 +15,7 @@
             [rz.scrap.rotogrinder :as rotoscrap]
             [rz.model.linear :as linear]
             [rz.model.svm :as svm]
+            [rz.model.model :as model]
             [rz.optimizers.utils :as utils])
   (:gen-class))
 
@@ -25,9 +26,22 @@
   (let [db (utils/get-db)
         players-data (data/init-players-data-fanduel)
         coefs (linear/create-model db c/*fanduel*)
-        players-proj (linear/add-linear-projection db players-data coefs c/*fanduel*)]
-    (pp/pprint (map #(list (:Name %) (:my-projection %)) players-proj))
-    (coinmp/lpsolve-solve-fanduel players-proj)))
+        players-proj (model/add-linear-projection db players-data coefs c/*fanduel* linear/linear-proj)
+        ]
+    (coinmp/lpsolve-solve-fanduel players-proj :linear-projection)))
+
+(defn- optimize-fanduel-lineups-svm
+  []
+  (rotoscrap/ingest-data c/*fanduel*)
+  (let [db (utils/get-db)
+        players-data (data/init-players-data-fanduel)
+        _ (svm/create-svm-model db c/*fanduel*)
+        coefs (linear/create-model db c/*fanduel*)
+        players-proj (svm/predict-players db players-data c/*fanduel*)
+        players-proj (linear/add-linear-projection db players-proj coefs c/*fanduel*)]
+    (coinmp/lpsolve-solve-fanduel players-proj  :svm-projection)
+    )
+  )
 
 (defn- optimize-draftking-lineups
   []
@@ -35,9 +49,8 @@
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking)
         coefs (linear/create-model db c/*draftking*)
-        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
-    (pp/pprint (map #(list (:Name %) (:my-projection %)) players-proj))
-    (coinmp/lpsolve-solve-draftkings players-proj)))
+        players-proj (model/add-linear-projection db players-data coefs c/*draftking* linear/linear-proj)]
+    (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)))
 
 (defn -main
   [& args]

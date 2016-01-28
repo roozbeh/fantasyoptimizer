@@ -11,7 +11,8 @@
 
 (defn calc-team-stats
   [team]
-  (map (fn [{:keys [Name IsHome Position Salary roto-wire-projection FPPG injury my-projection teamAbbrev GameInfo]}]
+  (map (fn [{:keys [Name IsHome Position Salary roto-wire-projection FPPG injury my-projection teamAbbrev GameInfo
+                    linear-projection svm-projection]}]
          (let [db-player (mc/find-one-as-map (get-db) c/*collection* {:Name Name})
                events (sort-by :game-epoch (:rotogrinder-events db-player))
                last-event (last events)
@@ -21,10 +22,11 @@
             :Pos Position
             :Sal Salary
             :FPPG FPPG
-            :Proj (format "%02.2f" my-projection)
+            :LinProj (if (nil? linear-projection) 0 (format "%2.2f" linear-projection))
+            :SVMProj (if (nil? svm-projection) 0 svm-projection)
             :Roto roto-wire-projection
             :LastGame (:draftking-fpts last-event)
-            :IsHome IsHome
+            :IsHome (if IsHome "HOME" "")
             ;(str "G " (:game-date last-event))
 
             ;      (str (:draftking-fpts last-event) " " (if (:home-game last-event) "H" "A"))
@@ -35,20 +37,23 @@
 
 (defn calc-totals
   [stated-team]
-
   (let
     [tkeys (filter #(not (contains? #{:name :Pos :IsHome :injury} %)) (keys (first stated-team)))]
        (assoc (apply array-map
          (flatten
            (for [key tkeys]
-             (do
-               [key (reduce +
-                          (map #(if (nil? (get % key))
-                                  0
-                                  (if (string? (get % key))
-                                    (read-string (get % key))
-                                    (get % key)))
-                               stated-team))]))))
+             (let [total (reduce +
+                                 (map #(if (nil? (get % key))
+                                        0
+                                        (if (string? (get % key))
+                                          (read-string (get % key))
+                                          (if number?
+                                            (get % key)
+                                            0)))
+                                      stated-team))]
+               [key (if (float? total)
+                      (format "%2.2f" total)
+                      total)]))))
          :name "Total")))
 
 (defn print-team2

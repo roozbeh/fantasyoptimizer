@@ -33,7 +33,8 @@
     (map (fn [p]
            (if (empty? (mc/find-maps db c/*collection* {:Name (:Name p)}))
              (mc/insert db c/*collection* p)
-             (println (str "Player already exists: " (:Name p)))))
+             ;(println (str "Player already exists: " (:Name p)))
+             ))
         players-data)))
 
 
@@ -85,40 +86,51 @@
              (assoc (mc/find-one-as-map db c/*collection* {:Name name})
                key value)))
 
+(defn ingest-player-info
+  [db {:keys [rotogrinder-id Name rotogrinder-events]}]
+  (let [url (str "https://rotogrinders.com/players/" rotogrinder-id "/stats?range=this-season")
+        ret (utils/fetch-url url)
+        stats-data (json/read-str (-> ret first :content first :content first) :key-fn keyword)]
+    (add-data-to-player db Name :rotogrinder-events
+                        (doall
+                          (map (fn [[event-id {:keys [data]}]]
+                                 (let [{:keys [player fantasy_points stats schedule team_id game_stat_mappings]} data
+                                       {:keys [collection]} fantasy_points
+                                       team_id (read-string team_id)
+                                       home-team-id (-> schedule :data :team_home :data :id)
+                                       dk-stats (first (filter #(= *rotogrind-draftking-id* (-> % second :data :site_id)) collection))
+                                       dk-fpts (-> dk-stats second :data :value)
+                                       fd-stats (first (filter #(= *rotogrind-fanduel-id* (-> % second :data :site_id)) collection))
+                                       fd-fpts (-> fd-stats second :data :value)
+                                       [game-date game-time] (string/split (-> schedule :data :time) #" ")
+                                       is-home? (= team_id home-team-id)
+                                       home-team (-> schedule :data :team_home :data :hashtag)
+                                       away-team (-> schedule :data :team_away :data :hashtag)]
+                                   {:event-id event-id
+                                    :draftking-fpts dk-fpts
+                                    :fanduel-fpts fd-fpts
+                                    :game-timestamp (-> schedule :data :time)
+                                    :game-date game-date
+                                    :game-epoch (.getTime (.parse (SimpleDateFormat. "MM/dd/yy") game-date))
+                                    :team team_id
+                                    :mins (:min game_stat_mappings)
+                                    :home-game is-home?
+                                    :team-name (if is-home? home-team away-team)
+                                    :opp-name (if is-home? away-team home-team)
+                                    }))
+                               stats-data)))))
+
 (defn get-rotogrinder-data
   [db]
-  (map
-    (fn [{:keys [rotogrinder-id Name rotogrinder-events]}]
-        (try
-          (println (str "Getting data for " Name ", id=" rotogrinder-id " . . ." ))
-          (let [url (str "https://rotogrinders.com/players/" rotogrinder-id "/stats?range=this-season")
-                ret (utils/fetch-url url)
-                stats-data (json/read-str (-> ret first :content first :content first) :key-fn keyword)]
-            (add-data-to-player db Name :rotogrinder-events
-              (doall
-                (map (fn [[event-id {:keys [data]}]]
-                   (let [{:keys [player fantasy_points stats schedule team_id game_stat_mappings]} data
-                         {:keys [collection]} fantasy_points
-                         team_id (read-string team_id)
-                         home-team-id (-> schedule :data :team_home :data :id)
-                         dk-stats (first (filter #(= *rotogrind-draftking-id* (-> % second :data :site_id)) collection))
-                         dk-fpts (-> dk-stats second :data :value)
-                         fd-stats (first (filter #(= *rotogrind-fanduel-id* (-> % second :data :site_id)) collection))
-                         fd-fpts (-> fd-stats second :data :value)
-                         [game-date game-time] (string/split (-> schedule :data :time) #" ")]
-                     {:event-id event-id
-                      :draftking-fpts dk-fpts
-                      :fanduel-fpts fd-fpts
-                      :game-timestamp (-> schedule :data :time)
-                      :game-date game-date
-                      :game-epoch (.getTime (.parse (SimpleDateFormat. "MM/dd/yy") game-date))
-                      :team team_id
-                      :mins (:min game_stat_mappings)
-                      :home-game (= team_id home-team-id)}))
-               stats-data))))
+  (doall
+    (map
+      (fn [{:keys [rotogrinder-id Name] :as player-data}]
+          (try
+            (println (str "Getting data for " Name ", id=" rotogrinder-id " . . ." ))
+            (ingest-player-info db player-data)
             (catch Exception e
               (println (str "ERROR in updating " Name " data, Exception: " e)))))
-    (mc/find-maps db c/*collection* {:rotogrinder-events nil})))
+      (mc/find-maps db c/*collection* {:rotogrinder-events nil}))))
 
 
 (defn ingest-data

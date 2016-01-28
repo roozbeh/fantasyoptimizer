@@ -10,7 +10,7 @@
             [incanter.stats :refer :all]
             [rz.optimizers.utils :as utils]))
 
-(def players-csv "../data/fd_nba_jan_27.csv")
+(def players-csv "../data/fd_nba_jan_28.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
 
@@ -61,7 +61,8 @@
 
 (defn init-players-data-fanduel
   []
-  (fix-pdata-keywords-fanduel (init-players-data)))
+  (filter #(not (= "O" (:injury %)))
+          (fix-pdata-keywords-fanduel (init-players-data))))
 
 (defn init-players-data-draftking
   []
@@ -76,19 +77,18 @@
 ;        label-rec (fn [r] (zipmap (map keyword header) r))]
 ;    (map label-rec (rest data))))
 
-(defn add-projection
-  [player-data projection-data]
-  (map (fn [p]
-         (let [rname (re-pattern (str ((keyword "First Name") p) ".*" ((keyword "Last Name") p) ".*"))
-               projection (filter (fn [pd] (re-find rname (:Player pd))) projection-data)]
-           (if (empty? projection)
-             (do
-               (println (str "ERROR Could not find projection for " rname))
-               (assoc p :projection (str (* (read-string (:FPPG p)) 0.5))))
-             (do
-               (assoc p :projection (:Value (first projection)))))))
-       player-data))
-
+;(defn add-projection
+;  [player-data projection-data]
+;  (map (fn [p]
+;         (let [rname (re-pattern (str ((keyword "First Name") p) ".*" ((keyword "Last Name") p) ".*"))
+;               projection (filter (fn [pd] (re-find rname (:Player pd))) projection-data)]
+;           (if (empty? projection)
+;             (do
+;               ;(println (str "ERROR Could not find projection for " rname))
+;               (assoc p :projection (str (* (read-string (:FPPG p)) 0.5))))
+;             (do
+;               (assoc p :projection (:Value (first projection)))))))
+;       player-data))
 
 (defn add-rotowires-projection
   [players-data contest-provider]
@@ -98,7 +98,7 @@
                                                       (:title pd)))  rotowires-data)]
              (if (empty? projection)
                 (do
-                  (println (str "ERROR Could not find projection for " (:name p)))
+                  ;(println (str "ERROR Could not find projection for " (:name p)))
                   (assoc p
                     :roto-wire-projection 0
                     :roto-wire-value (/ (* 1000 (:FPPG p)) (:Salary p)))

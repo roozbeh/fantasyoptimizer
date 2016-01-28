@@ -22,63 +22,6 @@
   [w]
   (.write w (str "NAME          FANTASY                                        \n")))
 
-;(defn- write-rows-fanduel
-;  [w]
-;  (.write w (str "ROWS                                                         \n"))
-;  (.write w (str " N  PTS                                                      \n"))
-;  (.write w (str " E  TT9                                                      \n"))
-;  (.write w (str " E  PG2                                                      \n"))
-;  (.write w (str " E  PF2                                                      \n"))
-;  (.write w (str " E  SG2                                                      \n"))
-;  (.write w (str " E  SF2                                                      \n"))
-;  (.write w (str " L  SAL                                                      \n")))
-;
-;(defn- write-columns-fanduel
-;  [w N players-data]
-;  (.write w (str "COLUMNS                                                      \n"))
-;
-;  (.write w (str "    INT1      'MARKER'                 'INTORG'              \n"))
-;  (doall
-;    (for [i (range N)]
-;      (do
-;        (.write w (str "    "
-;                       (str "X" (format "%04d" i))
-;                       "     PTS            "
-;                       (format "%6.2f" (- (double (:my-projection (nth players-data i)))))
-;                       "                         \n"))
-;        (.write w (str "    "
-;                       (str "X" 1)
-;                       "     TT9             "
-;                       (format "%5d" 1)
-;                       "                         \n"))
-;        (doall
-;          (for [role ["PG" "PF" "SG" "SF"]]
-;            (.write w (str "    "
-;                           (str "X" (format "%04d" i))
-;                           "     " role "2             "
-;                           (format "%5d" (if (= role (:Position (nth players-data i))) 1 0))
-;                           "                         \n"))))
-;        (.write w (str "    "
-;                       (str "X" (format "%04d" i))
-;                       "     SAL            "
-;                       (format "%5d" (:Salary (nth players-data i)))
-;                       "                         \n"))
-;
-;        )))
-;  (.write w (str "    INT1END   'MARKER'                 'INTEND'              \n")))
-;
-;
-;
-;(defn- write-rhs-fanduel
-;  [w N max-salary]
-;  (.write w (str "RHS                                                          \n"))
-;  (.write w (str "    RHS1      TT9               9.0                         \n"))
-;  (.write w (str "    RHS1      PG2               2.0                         \n"))
-;  (.write w (str "    RHS1      PF2               2.0                         \n"))
-;  (.write w (str "    RHS1      SG2               2.0                         \n"))
-;  (.write w (str "    RHS1      SF2               2.0                         \n"))
-;  (.write w (str "    RHS1      SAL             " max-salary "                         \n")))
-
 (defn- write-rows
   ([w context-provider]
    (.write w (str "ROWS                                                         \n"))
@@ -108,7 +51,7 @@
         (.write w (str " L  " row-name "                                                      \n"))))))
 
 (defn- write-columns
-   [w N players-data solutions context-provider]
+   [w N players-data solutions context-provider proj-keyword]
    (.write w (str "COLUMNS                                                      \n"))
    (.write w (str "    INT1      'MARKER'                 'INTORG'              \n"))
    (doall
@@ -117,7 +60,7 @@
           (.write w (str "    "
                          (str "X" (format "%04d" i))
                          "     PTS            "
-                         (format "%6.2f" (- (double (:my-projection (nth players-data i)))))
+                         (format "%6.2f" (- (double (proj-keyword (nth players-data i)))))
                          "                         \n"))
           (.write w (str "    "
                          (str "X" (format "%04d" i))
@@ -200,12 +143,12 @@
 
 
 (defn create-mps-file
-  [players-data max-salary solutions context-provider]
+  [players-data max-salary solutions context-provider proj-keyword]
   (let [N (count players-data)]
     (with-open [w (clojure.java.io/writer *mps-file*)]
       (write-meta-data w)
       (write-rows w solutions context-provider)
-      (write-columns w N players-data solutions context-provider)
+      (write-columns w N players-data solutions context-provider proj-keyword)
       (write-rhs w max-salary solutions context-provider)
       (write-bounds w N)
       (.write w (str "ENDATA                                                       \n")))))
@@ -223,13 +166,13 @@
 
 
 (defn lpsolve-solve-multiple
-  [max-salary players-data solution-count context-provider]
+  [max-salary players-data solution-count context-provider proj-keyword]
   (loop [solutions {}
          count 0]
     (if (>= count solution-count)
       solutions
       (do
-        (create-mps-file players-data max-salary solutions context-provider)
+        (create-mps-file players-data max-salary solutions context-provider proj-keyword)
         (let [{:keys [out]} (shell/sh *lpsolve-binary* "-mps" *mps-file*)
               variables (filter (fn [l] (re-find #"X[0-9][0-9][0-9][0-9][ ]+1" l)) (string/split-lines out))
               solution (set (map (comp first #(clojure.string/split % #" ")) variables))
@@ -259,18 +202,18 @@
 ;
 
 (defn lpsolve-solve-draftkings
-  [player-with-proj]
+  [player-with-proj proj-keyword]
   (print-solutions
-    (lpsolve-solve-multiple constants/*team-salary-draftkings* player-with-proj 5 c/*draftking*)
+    (lpsolve-solve-multiple constants/*team-salary-draftkings* player-with-proj 5 c/*draftking* proj-keyword)
     (data/add-rotowires-projection player-with-proj c/*draftking*)))
 
 
 
 
 (defn lpsolve-solve-fanduel
-  [player-with-proj]
+  [player-with-proj proj-keyword]
   (print-solutions
-    (lpsolve-solve-multiple constants/*team-salary-fanduel* player-with-proj 5 c/*fanduel*)
+    (lpsolve-solve-multiple constants/*team-salary-fanduel* player-with-proj 5 c/*fanduel* proj-keyword)
     (data/add-rotowires-projection player-with-proj c/*fanduel*)))
 
 
