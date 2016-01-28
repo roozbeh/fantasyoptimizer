@@ -26,7 +26,7 @@
   (let [db (utils/get-db)
         players-data (data/init-players-data-fanduel)
         coefs (linear/create-model db c/*fanduel*)
-        players-proj (model/add-linear-projection db players-data coefs c/*fanduel* linear/linear-proj)
+        players-proj (linear/add-linear-projection db players-data coefs c/*fanduel*)
         ]
     (coinmp/lpsolve-solve-fanduel players-proj :linear-projection)))
 
@@ -49,7 +49,7 @@
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking)
         coefs (linear/create-model db c/*draftking*)
-        players-proj (model/add-linear-projection db players-data coefs c/*draftking* linear/linear-proj)]
+        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
     (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)))
 
 (defn -main
