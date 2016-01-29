@@ -8,7 +8,6 @@
             [rz.projection :as proj]
             [rz.data :as data]
             [clojure.java.shell :as shell]
-            [rz.optimizers.cpplex :as cpplex]
             [rz.optimizers.constants :as c]
             [rz.optimizers.coinmp :as coinmp]
             [rz.scrap.rotogrinder :as rotoscrap]
@@ -18,12 +17,16 @@
             [rz.optimizers.utils :as utils])
   (:gen-class))
 
+(defn- force-db-update
+  []
+  (rotoscrap/ingest-data (data/init-players-data-fanduel)
+                         :force-update true))
 
 (defn- optimize-fanduel-lineups
   []
-  (rotoscrap/ingest-data c/*fanduel*)
   (let [db (utils/get-db)
         players-data (data/init-players-data-fanduel)
+        _   (rotoscrap/ingest-data players-data)
         coefs (linear/create-model db c/*fanduel*)
         players-proj (linear/add-linear-projection db players-data coefs c/*fanduel*)
         ]
@@ -31,9 +34,9 @@
 
 (defn- optimize-fanduel-lineups-svm
   []
-  (rotoscrap/ingest-data c/*fanduel*)
   (let [db (utils/get-db)
         players-data (data/init-players-data-fanduel)
+        _   (rotoscrap/ingest-data players-data)
         _ (svm/create-svm-model db c/*fanduel*)
         coefs (linear/create-model db c/*fanduel*)
         players-proj (svm/predict-players db players-data c/*fanduel*)
@@ -42,9 +45,9 @@
 
 (defn- optimize-draftking-lineups
   []
-  (rotoscrap/ingest-data c/*draftking*)
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking)
+        _   (rotoscrap/ingest-data players-data)
         coefs (linear/create-model db c/*draftking*)
         players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)
         ]
@@ -53,10 +56,10 @@
 
 (defn- optimize-draftking-lineups-svm
   []
-  (rotoscrap/ingest-data c/*draftking*)
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking)
         ;players-data (data/filter-high-sd players-data db)
+        _   (rotoscrap/ingest-data players-data)
         o (svm/create-svm-model db c/*draftking*)
         _ (println o)
         coefs (linear/create-model db c/*draftking*)

@@ -6,6 +6,31 @@
             [incanter.stats :refer :all]
             [monger.collection :as mc]))
 
+(defn nil->zero
+  [x]
+  (if (nil? x)
+    0
+    (if string?
+      (read-string x)
+      x)))
+
+(defn array->mean
+  [x]
+  (if (not (empty? x))
+    (mean x)
+    0))
+
+(defn nil->zero2
+  [x]
+  (if (nil? x)
+    0
+    x))
+
+(defn bool->int
+  [x]
+  (if x 1 0))
+
+
 (defn get-db  []
   (mg/get-db (mg/connect) c/*db-name*))
 
@@ -17,7 +42,7 @@
                events (sort-by :game-epoch (:rotogrinder-events db-player))
                last-event (last events)
                by-last (first (take-last 2 events))
-               scores (map (comp read-string :draftking-fpts) events)
+               scores (map (comp nil->zero :draftking-fpts) events)
                scores (if (empty? scores) [0] scores)
                ]
            {:name Name
@@ -26,7 +51,7 @@
             :FPPG FPPG
             :LinProj (if (nil? linear-projection) 0 (format "%2.2f" linear-projection))
             :SVMProj (if (nil? svm-projection) 0 svm-projection)
-            :Roto roto-wire-projection
+            :Roto (if (nil? roto-wire-projection) "0" roto-wire-projection)
             :Last (:draftking-fpts last-event)
             :home? (if IsHome "HOME" "")
             ;:Avg (mean scores)
@@ -88,26 +113,4 @@
   (html/html-resource (java.net.URL. url)))
 
 
-
-(defn nil->zero
-  [x]
-  (if (nil? x)
-    0
-    (read-string x)))
-
-(defn array->mean
-  [x]
-  (if (not (empty? x))
-    (mean x)
-    0))
-
-(defn nil->zero2
-  [x]
-  (if (nil? x)
-    0
-    x))
-
-(defn bool->int
-  [x]
-  (if x 1 0))
 

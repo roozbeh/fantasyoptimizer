@@ -104,7 +104,7 @@
            (let [projection (filter (fn [pd] (re-find (re-pattern  (str (:name p) ".*"))
                                                       (:title pd)))  rotowires-data)]
              (if (empty? projection)
-                -1
+                p
                 (do
                   (assoc p
                     :roto-wire-projection (read-string (:points (first projection)))

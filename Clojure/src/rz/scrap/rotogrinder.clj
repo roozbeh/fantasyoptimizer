@@ -19,14 +19,6 @@
 (def ^:dynamic *rotogrind-draftking-id* "20")
 (def ^:dynamic *rotogrind-fanduel-id* "2")
 
-(defn add-first-list
-  [players]
-  (map (fn [p]
-         (let [[first last] (string/split (:Name p) #" ")]
-           (assoc p :first-name first
-                    :last-name last)))
-       players))
-
 (defn create-players
   [db players-data]
   (doall
@@ -37,12 +29,6 @@
              ))
         players-data)))
 
-
-(defn init-players
-  [db content-provider]
-  (create-players db (add-first-list
-                       (data/init-players-data)
-                       )))
 
 (defn get-rotogrinder-id-name
   [db]
@@ -129,7 +115,7 @@
                                stats-data)))))
 
 (defn get-rotogrinder-data
-  [db]
+  [db force-update]
   (doall
     (map
       (fn [{:keys [rotogrinder-id Name] :as player-data}]
@@ -138,15 +124,19 @@
             (ingest-player-info db player-data)
             (catch Exception e
               (println (str "ERROR in updating " Name " data, Exception: " e)))))
-      (mc/find-maps db c/*collection* {:rotogrinder-events nil}))))
+      (mc/find-maps db c/*collection* (if force-update
+                                        {}
+                                        {:rotogrinder-events nil} ;only ones that do not events
+                                        )))))
 
 
 (defn ingest-data
-  [content-provider]
+  [players-data & {:keys [force-update] :or {force-update false}}]
+  (println (str "ingest-data, force update: " force-update))
   (let [db (utils/get-db)]
-    (init-players db content-provider)
+    (create-players db players-data)
     (get-rotogrinder-id-name db)
-    (get-rotogrinder-data db)))
+    (get-rotogrinder-data db force-update)))
 
 
 
