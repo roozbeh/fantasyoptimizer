@@ -10,7 +10,7 @@
             [incanter.stats :refer :all]
             [rz.optimizers.utils :as utils]))
 
-(def players-csv "../data/fd_nba_jan_28.csv")
+(def players-csv "../data/dk_nba_jan_28.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
 

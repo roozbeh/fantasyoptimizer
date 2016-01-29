@@ -39,9 +39,7 @@
         coefs (linear/create-model db c/*fanduel*)
         players-proj (svm/predict-players db players-data c/*fanduel*)
         players-proj (linear/add-linear-projection db players-proj coefs c/*fanduel*)]
-    (coinmp/lpsolve-solve-fanduel players-proj  :svm-projection)
-    )
-  )
+    (coinmp/lpsolve-solve-fanduel players-proj  :svm-projection)))
 
 (defn- optimize-draftking-lineups
   []
@@ -51,6 +49,18 @@
         coefs (linear/create-model db c/*draftking*)
         players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
     (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)))
+
+(defn- optimize-draftking-lineups-svm
+  []
+  (rotoscrap/ingest-data c/*draftking*)
+  (let [db (utils/get-db)
+        players-data (data/init-players-data-draftking)
+        o (svm/create-svm-model db c/*draftking*)
+        _ (println o)
+        coefs (linear/create-model db c/*draftking*)
+        players-proj (svm/predict-players db players-data c/*draftking*)
+        players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)]
+    (coinmp/lpsolve-solve-draftkings players-proj  :svm-projection)))
 
 (defn -main
   [& args]
