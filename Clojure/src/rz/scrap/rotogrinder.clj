@@ -59,6 +59,7 @@
                      [18956 "T McConnell"]
                      [18626 "Danté Exum"]
                      [16846 "Phil (Flip) Pressey"]
+                     [18897 "Rondae Hollis-Jefferson"]
                      ]]
       (mc/update db c/*collection* {:Name name}
                  (assoc (mc/find-one-as-map db c/*collection* {:Name name})

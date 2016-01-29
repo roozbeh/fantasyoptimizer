@@ -26,6 +26,7 @@
   []
   (let [db (utils/get-db)
         players-data (data/init-players-data-fanduel)
+        players-data (data/remove-injured players-data)
         _   (rotoscrap/ingest-data players-data)
         coefs (linear/create-model db c/*fanduel*)
         players-proj (linear/add-linear-projection db players-data coefs c/*fanduel*)
@@ -36,6 +37,7 @@
   []
   (let [db (utils/get-db)
         players-data (data/init-players-data-fanduel)
+        players-data (data/remove-injured players-data)
         _   (rotoscrap/ingest-data players-data)
         _ (svm/create-svm-model db c/*fanduel*)
         coefs (linear/create-model db c/*fanduel*)
@@ -43,14 +45,15 @@
         players-proj (linear/add-linear-projection db players-proj coefs c/*fanduel*)]
     (coinmp/lpsolve-solve-fanduel players-proj  :svm-projection)))
 
+
 (defn- optimize-draftking-lineups
   []
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking)
+        players-data (data/remove-injured players-data)
         _   (rotoscrap/ingest-data players-data)
         coefs (linear/create-model db c/*draftking*)
-        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)
-        ]
+        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
     (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)
     ))
 
@@ -58,6 +61,7 @@
   []
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking)
+        players-data (data/remove-injured players-data)
         ;players-data (data/filter-high-sd players-data db)
         _   (rotoscrap/ingest-data players-data)
         o (svm/create-svm-model db c/*draftking*)

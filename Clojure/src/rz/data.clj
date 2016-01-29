@@ -10,7 +10,7 @@
             [incanter.stats :refer :all]
             [rz.optimizers.utils :as utils]))
 
-(def players-csv-fd "../data/fd_nba_jan_28.csv")
+(def players-csv-fd "../data/fd_nba_jan_29.csv")
 (def players-csv-dk "../data/dk_nba_jan_28.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
@@ -65,6 +65,21 @@
 (defn init-players-data-draftking
   []
   (fix-pdata-keywords-draftking (load-csv-data players-csv-dk)))
+
+(defn remove-injured
+  [players-data]
+  (let [fd-data (init-players-data-fanduel)]
+    (filter (fn [p]
+              (let [fd-p (filter #(= (:Name %) (:Name p)) fd-data)]
+                (if (empty? fd-p)
+                  (do
+                    (println (str "Warning: no injury data available for " (:Name p)))
+                    true)
+                  (do
+                    (if (= "O" (:injury (first fd-p)))
+                      (println "Removing injured player: " (:Name p)))
+                    (not (= "O" (:injury (first fd-p))))))))
+            players-data)))
 
 ;(defn init-players-data
 ;  []

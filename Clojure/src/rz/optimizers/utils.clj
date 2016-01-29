@@ -94,8 +94,9 @@
   [team]
   (let [stated-team (calc-team-stats team)]
     (pp/print-table
-        (concat stated-team
-                [(calc-totals stated-team)]))))
+      [:home? :Pos :name :Min :FPPG :Max :StdDev :Last :Roto :LinProj :SVMProj :injury :Sal]
+      (concat stated-team
+              [(calc-totals stated-team)]))))
 
 (defn print-team
   [team]
