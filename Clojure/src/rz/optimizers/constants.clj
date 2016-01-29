@@ -13,3 +13,4 @@
 (def ^:dynamic *collection* "players")
 
 (def ^:dynamic *average-games-count* 3)
+(def ^:dynamic *average-games-count7* 7)

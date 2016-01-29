@@ -15,11 +15,9 @@
 
 (defn create-array-for-regression
   [data]
-  (map (fn [{:keys [pts-current last-event-mins last-event-pts last-home-event-mins
-                    last-home-event-pts last-away-event-mins last-away-event-pts
-                    avg-last-games avg-last-home-games avg-last-away-games avg-last-away-games
-                    current-home event-cnt  home-events away-events
-                    team-name opp-name last-salary cur-salary avg-salary] :as d}]
+  (map (fn [{:keys [pts-current last-home-event-mins
+                    last-home-event-pts avg-last-away-games
+                    event-cnt last-salary cur-salary avg-salary] :as d}]
          [
           last-home-event-pts
           last-home-event-mins

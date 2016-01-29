@@ -92,7 +92,11 @@
                     last-home-event-pts last-away-event-mins last-away-event-pts
                     avg-last-games avg-last-home-games avg-last-away-games avg-last-away-games
                     current-home event-cnt  home-events away-events
-                    team-name opp-name] :as d}]
+                    team-name opp-name last-salary cur-salary avg-salary
+                    avg-last-games7
+                    avg-last-home-games7
+                    avg-last-away-games7
+                    ] :as d}]
          [
           last-home-event-pts
           last-home-event-mins
@@ -109,6 +113,14 @@
 
           (count home-events)
 
+          last-salary
+          cur-salary
+          avg-salary
+
+          ;avg-last-games7
+          ;avg-last-home-games7
+          ;avg-last-away-games7
+
           ;(utils/nil->zero2 (:mins (get (reverse home-events) 0)))
           ;(utils/nil->zero (ftps-keyword (get home-events 0)))
           ;(utils/nil->zero2 (:mins (get (reverse home-events) 1)))
@@ -124,8 +136,8 @@
           ;(utils/nil->zero (ftps-keyword (get away-events 2)))
 
 
-          ;(get wins team-name) -> TODO
-          ;(get loss team-name) -> TODO
+          ;(get wins team-name)                              ;-> TODO
+          ;(get loss team-name)                              ;-> TODO
           ;(- (get wins team-name) (get loss team-name))
 
           (utils/nil->zero pts-current)])
@@ -154,7 +166,7 @@
         points (create-array-for-regression
                  (model/prepare-data db contest-provider)
                  ftps-keyword)
-        [test-set train-set ] (split-at (* (double (count points)) 0.5) points)
+        ;[test-set train-set ] (split-at (* (double (count points)) 0.2) points)
         ;train-set (repeatedly (* (double (count points)) 0.8) #(rand-nth points))
         ;test-set (repeatedly (* (double (count points)) 0.2) #(rand-nth points))
         test-set points

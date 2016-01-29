@@ -28,17 +28,20 @@
         away-events (filter #(= false (:home-game %)) events)
         last-home-event (last home-events)
         last-away-event (last away-events)
-        avg-last-games (utils/array->mean (take-last c/*average-games-count*
-                                                     (map (comp utils/nil->zero ftps-keyword)
-                                                          events)))
 
-        avg-last-home-games (utils/array->mean (take-last c/*average-games-count*
-                                                          (map (comp utils/nil->zero ftps-keyword)
-                                                               home-events)))
+        all-scores (map (comp utils/nil->zero ftps-keyword) events)
+        home-scores (map (comp utils/nil->zero ftps-keyword) home-events)
+        away-scores (map (comp utils/nil->zero ftps-keyword) away-events)
 
-        avg-last-away-games (utils/array->mean (take-last c/*average-games-count*
-                                                          (map (comp utils/nil->zero ftps-keyword)
-                                                               away-events)))]
+
+        avg-last-games (utils/array->mean (take-last c/*average-games-count* all-scores))
+        avg-last-home-games (utils/array->mean (take-last c/*average-games-count* home-scores))
+        avg-last-away-games (utils/array->mean (take-last c/*average-games-count* away-scores))
+
+        ;avg-last-games7 (utils/array->mean (take-last c/*average-games-count7* all-scores))
+        ;avg-last-home-games7 (utils/array->mean (take-last c/*average-games-count7* home-scores))
+        ;avg-last-away-games7 (utils/array->mean (take-last c/*average-games-count7* away-scores))
+        ]
     {:Name Name
      :last-event-mins (utils/nil->zero2 (:mins event-last))
      :last-event-pts (utils/nil->zero (ftps-keyword event-last))
@@ -53,10 +56,14 @@
      :avg-last-home-games avg-last-home-games
      :avg-last-away-games avg-last-away-games
 
+     ;:avg-last-games7 avg-last-games7
+     ;:avg-last-home-games7 avg-last-home-games7
+     ;:avg-last-away-games7 avg-last-away-games7
+
      :current-home (get event-current :home-game -1)
      :event-cnt (count events)
 
-     ;:home-events home-events
+     :home-events home-events
      ;:away-events away-events
 
      :team-name (:team-name event-current)
