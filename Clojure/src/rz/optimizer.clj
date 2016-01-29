@@ -8,7 +8,6 @@
             [rz.projection :as proj]
             [rz.data :as data]
             [clojure.java.shell :as shell]
-            [rz.optimizers.genetic :as genetic]
             [rz.optimizers.cpplex :as cpplex]
             [rz.optimizers.constants :as c]
             [rz.optimizers.coinmp :as coinmp]
@@ -47,14 +46,17 @@
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking)
         coefs (linear/create-model db c/*draftking*)
-        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
-    (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)))
+        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)
+        ]
+    (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)
+    ))
 
 (defn- optimize-draftking-lineups-svm
   []
   (rotoscrap/ingest-data c/*draftking*)
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking)
+        ;players-data (data/filter-high-sd players-data db)
         o (svm/create-svm-model db c/*draftking*)
         _ (println o)
         coefs (linear/create-model db c/*draftking*)
@@ -64,7 +66,7 @@
 
 (defn -main
   [& args]
-  (genetic/optimize-lineup)
+
   )
 
 

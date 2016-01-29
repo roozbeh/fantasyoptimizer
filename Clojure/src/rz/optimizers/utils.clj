@@ -17,6 +17,8 @@
                events (sort-by :game-epoch (:rotogrinder-events db-player))
                last-event (last events)
                by-last (first (take-last 2 events))
+               scores (map (comp read-string :draftking-fpts) events)
+               scores (if (empty? scores) [0] scores)
                ]
            {:name Name
             :Pos Position
@@ -25,8 +27,12 @@
             :LinProj (if (nil? linear-projection) 0 (format "%2.2f" linear-projection))
             :SVMProj (if (nil? svm-projection) 0 svm-projection)
             :Roto roto-wire-projection
-            :LastGame (:draftking-fpts last-event)
-            :IsHome (if IsHome "HOME" "")
+            :Last (:draftking-fpts last-event)
+            :home? (if IsHome "HOME" "")
+            ;:Avg (mean scores)
+            :StdDev (format "%2.2f" (sd scores))
+            :Min (apply min scores)
+            :Max  (apply max scores)
             ;(str "G " (:game-date last-event))
 
             ;      (str (:draftking-fpts last-event) " " (if (:home-game last-event) "H" "A"))
@@ -35,10 +41,13 @@
             }))
        (sort-by :Position team)))
 
+
+
 (defn calc-totals
   [stated-team]
   (let
-    [tkeys (filter #(not (contains? #{:name :Pos :IsHome :injury} %)) (keys (first stated-team)))]
+    [tkeys (filter #(not (contains? #{:name :Pos :home? :injury :Avg :StdDev :Min :Max} %))
+                   (keys (first stated-team)))]
        (assoc (apply array-map
          (flatten
            (for [key tkeys]
@@ -68,12 +77,12 @@
   (print-team2 (vals team)))
 
 
-(defn print-team-metrics
-  [team]
-  (println (str "Team Salary: " (reduce + (map :Salary (vals team)))))
-  (println (str "Team Sum FPPG: " (reduce + (map :FPPG (vals team)))))
-  (println (str "Team Sum Projection: " (reduce + (map :roto-wire-projection (vals team)))))
-  )
+;(defn print-team-metrics
+;  [team]
+;  (println (str "Team Salary: " (reduce + (map :Salary (vals team)))))
+;  (println (str "Team Sum FPPG: " (reduce + (map :FPPG (vals team)))))
+;  (println (str "Team Sum Projection: " (reduce + (map :roto-wire-projection (vals team)))))
+;  )
 
 (defn fetch-url [url]
   (html/html-resource (java.net.URL. url)))

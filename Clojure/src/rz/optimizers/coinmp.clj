@@ -51,7 +51,7 @@
         (.write w (str " L  " row-name "                                                      \n"))))))
 
 (defn- write-columns
-   [w N players-data solutions context-provider proj-keyword]
+   [w N players-data solutions context-provider proj-kwd]
    (.write w (str "COLUMNS                                                      \n"))
    (.write w (str "    INT1      'MARKER'                 'INTORG'              \n"))
    (doall
@@ -60,7 +60,7 @@
           (.write w (str "    "
                          (str "X" (format "%04d" i))
                          "     PTS            "
-                         (format "%6.2f" (- (double (proj-keyword (nth players-data i)))))
+                         (format "%6.2f" (- (double (proj-kwd (nth players-data i)))))
                          "                         \n"))
           (.write w (str "    "
                          (str "X" (format "%04d" i))

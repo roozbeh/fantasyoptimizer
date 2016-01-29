@@ -10,7 +10,8 @@
             [incanter.stats :refer :all]
             [rz.optimizers.utils :as utils]))
 
-(def players-csv "../data/dk_nba_jan_28.csv")
+(def players-csv-fd "../data/fd_nba_jan_28.csv")
+(def players-csv-dk "../data/dk_nba_jan_28.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
 
@@ -42,16 +43,14 @@
                           Name)
                   :injury ""
                   :Salary (read-string Salary)
-                  :FPPG (if AvgPointsPerGame
-                          (read-string AvgPointsPerGame)
-                          0)
+                  :FPPG (read-string AvgPointsPerGame)
                   :IsHome (if (and (some? GameInfo) (some? teamAbbrev))
                             (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo)))))
        pdatas))
 
-(defn init-players-data
-  []
-  (let [data (with-open [in-file (io/reader players-csv)]
+(defn- load-csv-data
+  [csv-name]
+  (let [data (with-open [in-file (io/reader csv-name)]
                (doall
                  (csv/read-csv in-file)))
         header (first data)
@@ -61,12 +60,20 @@
 
 (defn init-players-data-fanduel
   []
-  (filter #(not (= "O" (:injury %)))
-          (fix-pdata-keywords-fanduel (init-players-data))))
+  (fix-pdata-keywords-fanduel (load-csv-data players-csv-fd)))
 
 (defn init-players-data-draftking
   []
-  (fix-pdata-keywords-draftking (init-players-data)))
+  (fix-pdata-keywords-draftking (load-csv-data players-csv-dk)))
+
+;(defn init-players-data
+;  []
+;  (let [map-df (init-players-data-fanduel)
+;        map-dk (init-players-data-draftking)]
+;    (map (fn [{:keys [:Name] :as p-df}]
+;           (dissoc (merge p-df (first (filter #(= Name (:Name %)) map-dk)))
+;                   :Salary (keyword "")))
+;         (filter #(not (= "O" (:injury %))) map-df))))
 
 ;(defn init-projection-data
 ;  []
@@ -97,12 +104,7 @@
            (let [projection (filter (fn [pd] (re-find (re-pattern  (str (:name p) ".*"))
                                                       (:title pd)))  rotowires-data)]
              (if (empty? projection)
-                (do
-                  ;(println (str "ERROR Could not find projection for " (:name p)))
-                  (assoc p
-                    :roto-wire-projection 0
-                    :roto-wire-value (/ (* 1000 (:FPPG p)) (:Salary p)))
-                  )
+                -1
                 (do
                   (assoc p
                     :roto-wire-projection (read-string (:points (first projection)))
@@ -179,3 +181,12 @@
   (let [player (mc/find-one-as-map db c/*collection* {:Name name})]
     (assoc player :my-projection
                   (get-projection-for-player player))))
+
+;(defn filter-high-sd
+;  [players-data db]
+;  (filter (fn [{:keys [Name]}]
+;            (let [db-player (mc/find-one-as-map db c/*collection* {:Name Name})
+;                  events (:rotogrinder-events db-player)
+;                  scores (map (comp utils/nil->zero :draftking-fpts) events)]
+;              (< (sd scores) 10)))
+;          players-data))

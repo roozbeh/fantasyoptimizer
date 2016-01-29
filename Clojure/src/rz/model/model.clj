@@ -5,9 +5,25 @@
             [rz.optimizers.utils :as utils]))
 
 
+(defn get-point-function
+  [contest-provider]
+  (if (= contest-provider c/*fanduel*)
+    :fanduel-fpts
+    :draftking-fpts))
+
+
+(defn get-salary-function
+  [contest-provider]
+  (if (= contest-provider c/*fanduel*)
+    :fd-salary
+    :dk-salary))
+
+
 (defn data-from-events
-  [Name event-current events ftps-keyword]
-  (let [event-last (last events)
+  [Name event-current events contest-provider]
+  (let [ftps-keyword (get-point-function contest-provider)
+        salary-keyword (get-salary-function contest-provider)
+        event-last (last events)
         home-events (filter #(= true (:home-game %)) events)
         away-events (filter #(= false (:home-game %)) events)
         last-home-event (last home-events)
@@ -40,28 +56,39 @@
      :current-home (get event-current :home-game -1)
      :event-cnt (count events)
 
-     :home-events home-events
-     :away-events away-events
+     ;:home-events home-events
+     ;:away-events away-events
 
      :team-name (:team-name event-current)
      :opp-name (:opp-name event-current)
 
      ;label -> only for train
      :pts-current (get event-current ftps-keyword -1)
+
+     :last-salary (get event-last salary-keyword 0)
+     :cur-salary  (if (nil? (salary-keyword event-current))
+                    (:Salary event-current)
+                    (salary-keyword event-current))
+     :avg-salary (utils/array->mean (map salary-keyword events))
      }))
 
 (defn train-data-from-events
-  [Name sorted-events ftps-keyword]
+  [Name sorted-events contest-provider]
   (let [event-current (last sorted-events)
         events (butlast sorted-events)]
-    (data-from-events Name event-current events ftps-keyword)))
+    (data-from-events Name event-current events contest-provider)))
 
 (defn predict-data-from-events
-  [Name sorted-events ftps-keyword]
-  (data-from-events Name {:home-game -1 ftps-keyword "-1"} sorted-events ftps-keyword))
+  [{:keys [Name Salary IsHome]} sorted-events contest-provider]
+  (data-from-events Name
+                    {:home-game IsHome
+                     :Salary Salary
+                     (get-point-function contest-provider) "-1"}
+                    sorted-events
+                    contest-provider))
 
 (defn prepare-data-for-regression-recursive
-  [db ftps-keyword]
+  [db contest-provider]
   (flatten
     (map
       (fn [{:keys [Name rotogrinder-events teamAbbrev]}]
@@ -77,7 +104,7 @@
                  result []]
             (if (> iteration iterations-cnt)
               result
-              (recur (inc iteration) (butlast events) (conj result (train-data-from-events Name events ftps-keyword)))))))
+              (recur (inc iteration) (butlast events) (conj result (train-data-from-events Name events contest-provider)))))))
       (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} } }))))
 
 
@@ -87,15 +114,9 @@
           players))
 
 
-(defn get-point-function
-  [contest-provider]
-  (if (= contest-provider c/*fanduel*)
-    :fanduel-fpts
-    :draftking-fpts))
-
 (defn prepare-data
   [db contest-provider]
   (filter-23
-    (prepare-data-for-regression-recursive db (get-point-function contest-provider))))
+    (prepare-data-for-regression-recursive db contest-provider)))
 
 

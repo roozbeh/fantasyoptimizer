@@ -19,33 +19,15 @@
                     last-home-event-pts last-away-event-mins last-away-event-pts
                     avg-last-games avg-last-home-games avg-last-away-games avg-last-away-games
                     current-home event-cnt  home-events away-events
-                    team-name opp-name] :as d}]
+                    team-name opp-name last-salary cur-salary avg-salary] :as d}]
          [
           last-home-event-pts
           last-home-event-mins
           avg-last-away-games
           event-cnt
-
-          ;team-name
-          ;(get wins team-name)
-          ;(get loss team-name)
-          ;(- (get wins team-name) (get loss team-name))
-
-          ;(get wins opp-name)
-          ;(get loss opp-name)
-
-          ;PHX -> PHP
-          ;TOR -> TBL
-          ;SA -> SAS
-          ;GS -> GSW
-
-          ;last-event-pts
-          ;avg-last-home-games
-          ;avg-last-games
-          ;last-away-event-pts
-          ;last-away-event-mins
-          ;last-event-mins
-          ;(utils/bool->int current-home)
+          cur-salary
+          avg-salary
+          last-salary
 
           (utils/nil->zero pts-current)])
        data))
@@ -54,7 +36,8 @@
   [db contest-provider]
   (let [points (create-array-for-regression (model/prepare-data db contest-provider))
         ;points (take 10 points)
-        {:keys [coefs f-prob t-probs mse r-square] :as out} (linear-model (map last points) (map #(take (dec (count (first points))) %) points))]
+        {:keys [coefs f-prob t-probs mse r-square]}
+        (linear-model (map last points) (map #(take (dec (count (first points))) %) points))]
     (println (str "f-prob: " f-prob ", mse: " mse ", R^2: " r-square))
     (println "t-probs")
     (pp/pprint t-probs)
@@ -64,19 +47,20 @@
 
 
 (defn linear-proj
-  [player coefs ftps-keyword]
-  (let [{:keys [Name teamAbbrev GameInfo rotogrinder-events]} player
+  [player pinfo coefs ftps-keyword]
+  (let [{:keys [rotogrinder-events]} player
         sorted-events (sort-by :game-epoch rotogrinder-events)
-        {:keys [pts-current last-event-mins last-event-pts last-home-event-mins
-                last-home-event-pts last-away-event-mins last-away-event-pts
-                avg-last-games avg-last-home-games avg-last-away-games avg-last-away-games
-                current-home event-cnt  home-events away-events] :as d}
-        (model/predict-data-from-events Name sorted-events ftps-keyword)]
+        {:keys [last-home-event-mins last-home-event-pts avg-last-away-games event-cnt
+                last-salary cur-salary avg-salary] :as d}
+        (model/predict-data-from-events pinfo sorted-events ftps-keyword)]
     (+ (nth coefs 0)
        (* (nth coefs 1) last-home-event-pts)
        (* (nth coefs 2) last-home-event-mins)
        (* (nth coefs 3) avg-last-away-games)
-       (* (nth coefs 4) event-cnt))))
+       (* (nth coefs 4) event-cnt)
+       (* (nth coefs 5) last-salary)
+       (* (nth coefs 6) cur-salary)
+       (* (nth coefs 7) avg-salary))))
 
 (defn add-linear-projection
   [db players-data coefs contest-provider]
@@ -85,6 +69,7 @@
            (assoc pinfo :linear-projection
                         (linear-proj
                           (mc/find-one-as-map db c/*collection* {:Name Name})
+                          pinfo
                           coefs
                           (model/get-point-function contest-provider))))
          players-data)))

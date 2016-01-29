@@ -41,9 +41,8 @@
 (defn init-players
   [db content-provider]
   (create-players db (add-first-list
-                       (if (= content-provider c/*draftking*)
-                         (data/init-players-data-draftking)
-                         (data/init-players-data-fanduel)))))
+                       (data/init-players-data)
+                       )))
 
 (defn get-rotogrinder-id-name
   [db]
@@ -89,6 +88,7 @@
 (defn ingest-player-info
   [db {:keys [rotogrinder-id Name rotogrinder-events]}]
   (let [url (str "https://rotogrinders.com/players/" rotogrinder-id "/stats?range=this-season")
+        _ (println url)
         ret (utils/fetch-url url)
         stats-data (json/read-str (-> ret first :content first :content first) :key-fn keyword)]
     (add-data-to-player db Name :rotogrinder-events
@@ -104,6 +104,12 @@
                                        fd-fpts (-> fd-stats second :data :value)
                                        [game-date game-time] (string/split (-> schedule :data :time) #" ")
                                        is-home? (= team_id home-team-id)
+                                       fd-salary (-> (filter #(= *rotogrind-fanduel-id* (-> % :data :site_id))
+                                                             (-> schedule :data :salaries :collection))
+                                                     first :data :salary utils/nil->zero)
+                                       dk-salary (-> (filter #(= *rotogrind-draftking-id* (-> % :data :site_id))
+                                                             (-> schedule :data :salaries :collection))
+                                                     first :data :salary utils/nil->zero)
                                        home-team (-> schedule :data :team_home :data :hashtag)
                                        away-team (-> schedule :data :team_away :data :hashtag)]
                                    {:event-id event-id
@@ -117,6 +123,8 @@
                                     :home-game is-home?
                                     :team-name (if is-home? home-team away-team)
                                     :opp-name (if is-home? away-team home-team)
+                                    :fd-salary fd-salary
+                                    :dk-salary dk-salary
                                     }))
                                stats-data)))))
 
@@ -139,4 +147,6 @@
     (init-players db content-provider)
     (get-rotogrinder-id-name db)
     (get-rotogrinder-data db)))
+
+
 
