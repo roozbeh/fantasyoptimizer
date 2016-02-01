@@ -14,7 +14,8 @@
             [rz.model.linear :as linear]
             [rz.model.svm :as svm]
             [rz.model.model :as model]
-            [rz.optimizers.utils :as utils])
+            [rz.optimizers.utils :as utils]
+            [monger.collection :as mc])
   (:gen-class))
 
 (defn- force-db-update
@@ -45,17 +46,17 @@
         players-proj (linear/add-linear-projection db players-proj coefs c/*fanduel*)]
     (coinmp/lpsolve-solve-fanduel players-proj  :svm-projection)))
 
-
 (defn- optimize-draftking-lineups
   []
   (let [db (utils/get-db)
-        players-data (data/init-players-data-draftking)
+        players-data (data/init-players-data-draftking2)
         players-data (data/remove-injured players-data)
         _   (rotoscrap/ingest-data players-data)
-        coefs (linear/create-model db c/*draftking*)
+        coefs (linear/create-model db c/*draftking* (map :Name players-data))
         players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
-    (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)
-    ))
+    (data/save-solutions
+      (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)
+      c/*draftking*)))
 
 (defn- optimize-draftking-lineups-svm
   []
@@ -70,6 +71,23 @@
         players-proj (svm/predict-players db players-data c/*draftking*)
         players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)]
     (coinmp/lpsolve-solve-draftkings players-proj  :svm-projection)))
+
+
+;TODO: to timestamp database, to make sure old data is not being regressioned!
+
+(defn save-projections-dk
+  []
+  (let [db (utils/get-db)
+        players-data (data/init-players-data-draftking)
+        players-data (data/remove-injured players-data)
+        _   (rotoscrap/ingest-data players-data)
+        o (svm/create-svm-model db c/*draftking*)
+        _ (println o)
+        coefs (linear/create-model db c/*draftking*)
+        players-proj (svm/predict-players db players-data c/*draftking*)
+        players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)
+        players-proj (data/add-rotowires-projection players-proj c/*draftking*)]
+    (data/save-projections db players-proj)))
 
 (defn -main
   [& args]

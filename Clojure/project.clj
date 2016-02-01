@@ -10,8 +10,7 @@
                  [org.clojure/data.json "0.2.6"]
                  [com.cemerick/url "0.1.1"]
                  [incanter "1.2.3-SNAPSHOT"]
-                ]
-
+                 [clj-time "0.11.0"]]
   :main rz.optimizer
   :uberjar-name "fantasy_optimizer.jar"
   :jvm-opts ["-Xmx2g"  "-XX:-OmitStackTraceInFastThrow"]

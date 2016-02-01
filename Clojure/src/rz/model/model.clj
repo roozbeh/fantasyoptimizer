@@ -2,7 +2,8 @@
   (:require [rz.optimizers.constants :as c]
             [monger.collection :as mc]
             [monger.operators :refer :all]
-            [rz.optimizers.utils :as utils]))
+            [rz.optimizers.utils :as utils]
+            [clojure.pprint :as pp]))
 
 
 (defn get-point-function
@@ -94,8 +95,14 @@
                     sorted-events
                     contest-provider))
 
+(defn load-players
+  [db player-names]
+  (if (nil? player-names)
+    (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} } })
+    (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} }
+                                     :Name {$in player-names}})))
 (defn prepare-data-for-regression-recursive
-  [db contest-provider]
+  [db contest-provider player-names]
   (flatten
     (map
       (fn [{:keys [Name rotogrinder-events teamAbbrev]}]
@@ -104,7 +111,7 @@
               home-events (filter #(= true (:home-game %)) butlast-events)
               away-events (filter #(= false (:home-game %)) butlast-events)
               iterations-cnt (- (min (count home-events) (count away-events)) c/*average-games-count*)
-              ;iterations-cnt (min 3 iterations-cnt)
+              ;iterations-cnt 1
               ]
           (loop [iteration 0
                  events sorted-events
@@ -112,18 +119,22 @@
             (if (> iteration iterations-cnt)
               result
               (recur (inc iteration) (butlast events) (conj result (train-data-from-events Name events contest-provider)))))))
-      (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} } }))))
+      (load-players db player-names))))
 
 
 (defn filter-23
   [players]
-  (filter #(and (not (= -1 (:pts-current %))))
+  (filter (fn [{:keys [pts-current cur-salary]}]
+            (and (not (= -1 pts-current))
+                 (not (= 0 cur-salary) )))
           players))
 
 
 (defn prepare-data
-  [db contest-provider]
-  (filter-23
-    (prepare-data-for-regression-recursive db contest-provider)))
+  ([db contest-provider player-names]
+   (filter-23
+     (prepare-data-for-regression-recursive db contest-provider player-names)))
+  ([db contest-provider]
+   (prepare-data db contest-provider nil)))
 
 

@@ -10,8 +10,11 @@
             [incanter.stats :refer :all]
             [rz.optimizers.utils :as utils]))
 
-(def players-csv-fd "../data/fd_nba_jan_29.csv")
-(def players-csv-dk "../data/dk_nba_jan_28.csv")
+(def players-csv-fd "../data/fd_nba_jan_31.csv")
+(def players-csv-dk "../data/dk_nba_jan_31.csv")
+
+
+(def lineup-csv-dk "../data/dk_nbc_lineup_jan_31.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
 
@@ -48,6 +51,31 @@
                             (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo)))))
        pdatas))
 
+(defn- fix-pdata-keywords-draftking2
+  [pdatas]
+  (map (fn [{:keys [GameInfo] :as p}]
+         (let [TeamAbbrev ((keyword "TeamAbbrev ") p)
+               ID ((keyword " ID") p)
+               Name ((keyword " Name") p)
+               NameID ((keyword "Name + ID") p)
+               Salary ((keyword " Salary") p)
+               TeamAbbrev ((keyword "TeamAbbrev ") p)
+               ]
+           (dissoc
+           (assoc p
+                  :Name Name
+                  :NameID NameID
+                  :injury ""
+                  :Salary (read-string Salary)
+                  :ID (read-string ID)
+                  :TeamAbbrev TeamAbbrev
+                  :IsHome (if (and (some? GameInfo) (some? TeamAbbrev))
+                            (some? (re-find (re-pattern (str "@" TeamAbbrev)) GameInfo))))
+           (keyword " Salary") (keyword " ID") :PF :SF :SG :UTIL :F :C :G :PG (keyword " Name")
+           (keyword "") (keyword "Name + ID") (keyword "TeamAbbrev ")
+           )))
+       pdatas))
+
 (defn- load-csv-data
   [csv-name]
   (let [data (with-open [in-file (io/reader csv-name)]
@@ -65,6 +93,10 @@
 (defn init-players-data-draftking
   []
   (fix-pdata-keywords-draftking (load-csv-data players-csv-dk)))
+
+(defn init-players-data-draftking2
+  []
+  (fix-pdata-keywords-draftking2 (load-csv-data lineup-csv-dk)))
 
 (defn remove-injured
   [players-data]
@@ -116,7 +148,7 @@
   [players-data contest-provider]
   (let [rotowires-data (proj/get-rotowires-projections contest-provider)]
     (map (fn [p]
-           (let [projection (filter (fn [pd] (re-find (re-pattern  (str (:name p) ".*"))
+           (let [projection (filter (fn [pd] (re-find (re-pattern  (str (:Name p) ".*"))
                                                       (:title pd)))  rotowires-data)]
              (if (empty? projection)
                 p
@@ -205,3 +237,68 @@
 ;                  scores (map (comp utils/nil->zero :draftking-fpts) events)]
 ;              (< (sd scores) 10)))
 ;          players-data))
+
+(defn save-projections
+  [db players-proj]
+  (doall
+    (map
+      (fn [{:keys [Name linear-projection svm-projection roto-wire-projection]}]
+        (try
+          (println (str "Setting projection data for " Name ))
+          (let [{:keys [projections] :as db-player}
+                (mc/find-one-as-map db c/*collection* {:Name Name})]
+            (mc/update db c/*collection* {:Name Name}
+                     (assoc db-player
+                       :projections
+                       (assoc projections "01312015"
+                                          {:linear-projection linear-projection
+                                           :svm-projection svm-projection
+                                           :roto-wire-projection roto-wire-projection}))))
+          (catch Exception e
+            (println (str "ERROR in updating " Name " data, Exception: " e)))))
+      players-proj))
+  (println "projection updated!"))
+
+
+(defn choose-player-for-pos
+  [pos players]
+  (if (= 1 (count players))
+    (first players)
+    (let [poses (map first players)]
+      (if (some #(= % pos) poses)
+        (first (filter #(= (first %) pos) players))
+        (cond
+          (= pos "G")  (or (choose-player-for-pos "PG" players)
+                           (choose-player-for-pos "SG" players))
+          (= pos "F")  (or (choose-player-for-pos "PF" players)
+                           (choose-player-for-pos "SF" players))
+          (= pos "UTIL")  (or (choose-player-for-pos "PF" players)
+                              (choose-player-for-pos "SF" players)
+                              (choose-player-for-pos "PG" players)
+                              (choose-player-for-pos "SG" players)
+                              (choose-player-for-pos "C" players)))))))
+
+(defn convert-solution
+  [header-array solution]
+  (loop [headers header-array
+         players solution
+         result []]
+    (if (empty? headers)
+      result
+      (let [pos-to-fill (first headers)
+            p (choose-player-for-pos pos-to-fill players)]
+        (recur (rest headers)
+               (filter #(not (= (second %) (second p))) players)
+               (conj result (str (second p))))))))
+
+(defn save-solutions
+  [solutions contest-provider]
+  (let [date-str (.format (java.text.SimpleDateFormat. "MM_dd_yyyy_hh_mm")  (java.util.Date.))
+        filename (str "../data/solutions_" contest-provider "_" date-str ".csv")
+        header-array ["PG","SG","SF","PF","C","G","F","UTIL"]
+        solutions-array (map (partial convert-solution header-array) solutions)
+        ]
+    (with-open [out-file (io/writer filename)]
+      (csv/write-csv out-file [header-array])
+      (csv/write-csv out-file solutions-array))
+    (println (str "Solutions written in " filename))))

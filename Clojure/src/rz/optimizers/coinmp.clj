@@ -121,7 +121,7 @@
       (.write w (str "    RHS1      TT8               8.0                         \n"))
       (.write w (str "    RHS1      PG1               1.0                         \n"))
       (.write w (str "    RHS1      PF1               1.0                         \n"))
-      (.write w (str "    RHS1      SG2               1.0                         \n"))
+      (.write w (str "    RHS1      SG1               1.0                         \n"))
       (.write w (str "    RHS1      SF1               1.0                         \n"))
       (.write w (str "    RHS1      Cm1               1.0                         \n"))
       (.write w (str "    RHS1      PSG               3.0                         \n"))
@@ -187,7 +187,8 @@
       (let [indexes (map #(Integer/parseInt (second (re-matches #"X([0-9]+)" %))) variables)
             team (map #(nth players-data %) indexes)]
         (println row)
-        (utils/print-team2 team)))))
+        (utils/print-team2 team)
+        (map #(list (:Position %) (:NameID %)) team)))))
 
 ;(defn lpsolve-solve
 ;  [max-salary players-data]

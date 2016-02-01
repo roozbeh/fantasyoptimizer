@@ -72,6 +72,13 @@
              (assoc (mc/find-one-as-map db c/*collection* {:Name name})
                key value)))
 
+(defn verify-data
+  [{:keys [fd-salary dk-salary]}]
+  (and true
+       (not (= 0 dk-salary))
+       (not (= 0 fd-salary))
+       ))
+
 (defn ingest-player-info
   [db {:keys [rotogrinder-id Name rotogrinder-events]}]
   (let [url (str "https://rotogrinders.com/players/" rotogrinder-id "/stats?range=this-season")
@@ -79,7 +86,7 @@
         ret (utils/fetch-url url)
         stats-data (json/read-str (-> ret first :content first :content first) :key-fn keyword)]
     (add-data-to-player db Name :rotogrinder-events
-                        (doall
+                        (filter verify-data
                           (map (fn [[event-id {:keys [data]}]]
                                  (let [{:keys [player fantasy_points stats schedule team_id game_stat_mappings]} data
                                        {:keys [collection]} fantasy_points
