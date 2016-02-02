@@ -1,0 +1,97 @@
+# OF ENTRIES:
+1
+PMR:
+0
+REM. SALARY:
+$0
+Pos	Player	FPTS	 
+PG	Kyle Lowry	21	lock
+SG	Raymond Felton	19.75	lock
+SF	Rudy Gay	56.25	lock
+PF	Kevin Love	40	lock
+C	Brook Lopez	42.25	lock
+G	Jeff Teague	53.75	lock
+F	J.J. Hickson	0	lock
+UTIL	Gordon Hayward	55	lock
+TOTAL FANTASY POINTS: 288.00
+LAST EDIT: 02/01/2016 6:00 PM EST
+View Entries
+NBA
+COMPLETE
+# OF ENTRIES:
+1
+PMR:
+0
+REM. SALARY:
+$200
+Pos	Player	FPTS	 
+PG	George Hill	41.25	lock
+SG	Raymond Felton	19.75	lock
+SF	Rudy Gay	56.25	lock
+PF	Kevin Love	40	lock
+C	Brook Lopez	42.25	lock
+G	Jeff Teague	53.75	lock
+F	Thaddeus Young	15.75	lock
+UTIL	Gordon Hayward	55	lock
+TOTAL FANTASY POINTS: 324.00
+LAST EDIT: 02/01/2016 6:00 PM EST
+View Entries
+NBA
+COMPLETE
+# OF ENTRIES:
+1
+PMR:
+0
+REM. SALARY:
+$0
+Pos	Player	FPTS	 
+PG	George Hill	41.25	lock
+SG	Raymond Felton	19.75	lock
+SF	Joe Johnson	12.75	lock
+PF	Kevin Love	40	lock
+C	Brook Lopez	42.25	lock
+G	Kyle Lowry	21	lock
+F	Rudy Gay	56.25	lock
+UTIL	Jeff Teague	53.75	lock
+TOTAL FANTASY POINTS: 287.00
+LAST EDIT: 02/01/2016 6:00 PM EST
+View Entries
+NBA
+COMPLETE
+# OF ENTRIES:
+1
+PMR:
+0
+REM. SALARY:
+$0
+Pos	Player	FPTS	 
+PG	George Hill	41.25	lock
+SG	Raymond Felton	19.75	lock
+SF	Joe Johnson	12.75	lock
+PF	Kevin Love	40	lock
+C	Brook Lopez	42.25	lock
+G	Monta Ellis	25.5	lock
+F	Rudy Gay	56.25	lock
+UTIL	Gordon Hayward	55	lock
+TOTAL FANTASY POINTS: 292.75
+LAST EDIT: 02/01/2016 6:00 PM EST
+View Entries
+NBA
+COMPLETE
+# OF ENTRIES:
+1
+PMR:
+0
+REM. SALARY:
+$0
+Pos	Player	FPTS	 
+PG	R. Westbrook	53.75	lock
+SG	Raymond Felton	19.75	lock
+SF	Joe Johnson	12.75	lock
+PF	J.J. Hickson	0	lock
+C	Brook Lopez	42.25	lock
+G	Jeff Teague	53.75	lock
+F	Rudy Gay	56.25	lock
+UTIL	Gordon Hayward	55	lock
+TOTAL FANTASY POINTS: 293.50
+LAST EDIT: 02/01/2016 6:00 PM EST
