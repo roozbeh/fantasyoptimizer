@@ -19,17 +19,21 @@
                     last-home-event-pts avg-last-away-games
                     event-cnt last-salary cur-salary avg-salary
                     last-event-mins last-event-pts
-                    avg-last-games] :as d}]
+                    avg-last-games current-home
+                    isPG isSG isSF isPF isC
+                    ] :as d}]
          [
-          ;last-event-pts
-
           avg-last-games
           last-home-event-mins
-          ;avg-last-away-games
+          avg-last-away-games
           event-cnt
-          cur-salary
           avg-salary
-          ;last-salary
+          last-salary
+          ;cur-salary
+          (utils/bool->int current-home)
+
+          ;last-event-pts
+          ;last-home-event-pts
 
           (utils/nil->zero pts-current)])
        data))
@@ -52,19 +56,26 @@
 
 
 (defn linear-proj
-  [player pinfo coefs ftps-keyword]
-  (let [{:keys [rotogrinder-events]} player
-        sorted-events (sort-by :game-epoch rotogrinder-events)
+  [{:keys [rotogrinder-events] :as player} pinfo coefs ftps-keyword]
+  (let [sorted-events (sort-by :game-epoch rotogrinder-events)
         {:keys [last-home-event-mins last-home-event-pts avg-last-away-games event-cnt
                 last-salary cur-salary avg-salary
-                avg-last-games] :as d}
-        (model/predict-data-from-events pinfo sorted-events ftps-keyword)]
+                avg-last-games current-home] :as d}
+        (model/predict-data-from-events pinfo player sorted-events ftps-keyword)]
     (+ (nth coefs 0)
        (* (nth coefs 1) avg-last-games)
        (* (nth coefs 2) last-home-event-mins)
-       (* (nth coefs 3) event-cnt)
-       (* (nth coefs 4) cur-salary)
+       (* (nth coefs 3) avg-last-away-games)
+       (* (nth coefs 4) event-cnt)
        (* (nth coefs 5) avg-salary)
+       (* (nth coefs 6) last-salary)
+       (* (nth coefs 7) (utils/bool->int current-home))
+
+       ;(* (nth coefs 1) avg-last-games)
+       ;(* (nth coefs 2) last-home-event-mins)
+       ;(* (nth coefs 3) event-cnt)
+       ;(* (nth coefs 4) cur-salary)
+       ;(* (nth coefs 5) avg-salary)
 
        ;(* (nth coefs 1) last-home-event-pts)
        ;(* (nth coefs 2) last-home-event-mins)

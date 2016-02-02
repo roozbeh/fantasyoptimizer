@@ -13,7 +13,7 @@
             [rz.scrap.rotogrinder :as rotoscrap]
             [rz.model.linear :as linear]
             [rz.model.svm :as svm]
-            [rz.model.model :as model]
+            [rz.model.logistic :as logistic]
             [rz.optimizers.utils :as utils]
             [monger.collection :as mc])
   (:gen-class))
@@ -28,8 +28,9 @@
   (let [db (utils/get-db)
         players-data (data/init-players-data-fanduel)
         players-data (data/remove-injured players-data)
+        player-names (map :Name players-data)
         _   (rotoscrap/ingest-data players-data)
-        coefs (linear/create-model db c/*fanduel*)
+        coefs (linear/create-model db c/*fanduel* player-names)
         players-proj (linear/add-linear-projection db players-data coefs c/*fanduel*)
         ]
     (coinmp/lpsolve-solve-fanduel players-proj :linear-projection)))
@@ -39,9 +40,11 @@
   (let [db (utils/get-db)
         players-data (data/init-players-data-fanduel)
         players-data (data/remove-injured players-data)
+        player-names (map :Name players-data)
         _   (rotoscrap/ingest-data players-data)
-        _ (svm/create-svm-model db c/*fanduel*)
-        coefs (linear/create-model db c/*fanduel*)
+        o (svm/create-model db c/*fanduel* player-names)
+        _ (println o)
+        coefs (linear/create-model db c/*fanduel* player-names)
         players-proj (svm/predict-players db players-data c/*fanduel*)
         players-proj (linear/add-linear-projection db players-proj coefs c/*fanduel*)]
     (coinmp/lpsolve-solve-fanduel players-proj  :svm-projection)))
@@ -51,8 +54,9 @@
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking2)
         players-data (data/remove-injured players-data)
+        player-names (map :Name players-data)
         _   (rotoscrap/ingest-data players-data)
-        coefs (linear/create-model db c/*draftking* (map :Name players-data))
+        coefs (linear/create-model db c/*draftking* player-names)
         players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
     (data/save-solutions
       (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)
@@ -63,11 +67,11 @@
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking)
         players-data (data/remove-injured players-data)
-        ;players-data (data/filter-high-sd players-data db)
+        player-names (map :Name players-data)
         _   (rotoscrap/ingest-data players-data)
-        o (svm/create-svm-model db c/*draftking*)
+        o (svm/create-model db c/*draftking* player-names)
         _ (println o)
-        coefs (linear/create-model db c/*draftking*)
+        coefs (linear/create-model db c/*draftking* player-names)
         players-proj (svm/predict-players db players-data c/*draftking*)
         players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)]
     (coinmp/lpsolve-solve-draftkings players-proj  :svm-projection)))
@@ -81,9 +85,10 @@
         players-data (data/init-players-data-draftking)
         players-data (data/remove-injured players-data)
         _   (rotoscrap/ingest-data players-data)
-        o (svm/create-svm-model db c/*draftking*)
+        player-names (map :Name players-data)
+        o (svm/create-model db c/*draftking* player-names)
         _ (println o)
-        coefs (linear/create-model db c/*draftking*)
+        coefs (linear/create-model db c/*draftking* player-names)
         players-proj (svm/predict-players db players-data c/*draftking*)
         players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)
         players-proj (data/add-rotowires-projection players-proj c/*draftking*)]

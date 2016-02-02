@@ -9,3 +9,4 @@ fantasy.problem
 Clojure/.nrepl-port
 Clojure/target
 Regression/libsvm/svm.o
+Solver/cpplex/build

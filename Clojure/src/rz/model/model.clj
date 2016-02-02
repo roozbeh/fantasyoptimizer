@@ -20,8 +20,8 @@
     :dk-salary))
 
 
-(defn data-from-events
-  [Name event-current events contest-provider]
+(defn- data-from-events
+  [{:keys [Name Position]} event-current events contest-provider]
   (let [ftps-keyword (get-point-function contest-provider)
         salary-keyword (get-salary-function contest-provider)
         event-last (last events)
@@ -33,7 +33,6 @@
         all-scores (map (comp utils/nil->zero ftps-keyword) events)
         home-scores (map (comp utils/nil->zero ftps-keyword) home-events)
         away-scores (map (comp utils/nil->zero ftps-keyword) away-events)
-
 
         avg-last-games (utils/array->mean (take-last c/*average-games-count* all-scores))
         avg-last-home-games (utils/array->mean (take-last c/*average-games-count* home-scores))
@@ -57,15 +56,12 @@
      :avg-last-home-games avg-last-home-games
      :avg-last-away-games avg-last-away-games
 
-     ;:avg-last-games7 avg-last-games7
-     ;:avg-last-home-games7 avg-last-home-games7
-     ;:avg-last-away-games7 avg-last-away-games7
-
      :current-home (get event-current :home-game -1)
      :event-cnt (count events)
 
-     :home-events home-events
+     ;:home-events home-events
      ;:away-events away-events
+     ;:all-events events
 
      :team-name (:team-name event-current)
      :opp-name (:opp-name event-current)
@@ -80,15 +76,15 @@
      :avg-salary (utils/array->mean (map salary-keyword events))
      }))
 
-(defn train-data-from-events
-  [Name sorted-events contest-provider]
+(defn- train-data-from-events
+  [db-player sorted-events contest-provider]
   (let [event-current (last sorted-events)
         events (butlast sorted-events)]
-    (data-from-events Name event-current events contest-provider)))
+    (data-from-events db-player event-current events contest-provider)))
 
 (defn predict-data-from-events
-  [{:keys [Name Salary IsHome]} sorted-events contest-provider]
-  (data-from-events Name
+  [{:keys [Name Salary IsHome]} db-player sorted-events contest-provider]
+  (data-from-events db-player
                     {:home-game IsHome
                      :Salary Salary
                      (get-point-function contest-provider) "-1"}
@@ -101,24 +97,30 @@
     (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} } })
     (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} }
                                      :Name {$in player-names}})))
-(defn prepare-data-for-regression-recursive
-  [db contest-provider player-names]
+
+(defn- prepare-data-for-regression-recursive
+  [db contest-provider player-names iteration-max use-last]
   (flatten
     (map
-      (fn [{:keys [Name rotogrinder-events teamAbbrev]}]
-        (let [sorted-events (sort-by :game-epoch rotogrinder-events)
+      (fn [{:keys [Name rotogrinder-events teamAbbrev] :as db-player}]
+        (let [all-sorted-events (sort-by :game-epoch rotogrinder-events)
+              sorted-events (if use-last all-sorted-events (butlast all-sorted-events))
               butlast-events (butlast sorted-events)
               home-events (filter #(= true (:home-game %)) butlast-events)
               away-events (filter #(= false (:home-game %)) butlast-events)
               iterations-cnt (- (min (count home-events) (count away-events)) c/*average-games-count*)
               ;iterations-cnt 1
+              iterations-cnt (min iterations-cnt iteration-max)
+
               ]
           (loop [iteration 0
                  events sorted-events
                  result []]
             (if (> iteration iterations-cnt)
               result
-              (recur (inc iteration) (butlast events) (conj result (train-data-from-events Name events contest-provider)))))))
+              (recur (inc iteration)
+                     (butlast events)
+                     (conj result (train-data-from-events db-player events contest-provider)))))))
       (load-players db player-names))))
 
 
@@ -131,10 +133,12 @@
 
 
 (defn prepare-data
-  ([db contest-provider player-names]
+  ([db contest-provider player-names & {:keys [iteration-max use-last]
+                                        :or {iteration-max 1000 use-last true}}]
    (filter-23
-     (prepare-data-for-regression-recursive db contest-provider player-names)))
-  ([db contest-provider]
-   (prepare-data db contest-provider nil)))
+     (prepare-data-for-regression-recursive db contest-provider player-names
+                                            iteration-max use-last)))
+  ([db contest-provider ]
+   (prepare-data db contest-provider nil {})))
 
 

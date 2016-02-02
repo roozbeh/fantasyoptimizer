@@ -13,6 +13,7 @@
 (def ^:dynamic *svm-test-file*  "../svm_test_file")
 (def ^:dynamic *svm-model-file*  "../svm_model_file")
 (def ^:dynamic *svm-test-output-file*  "../svm_output_file")
+(def ^:dynamic *svm-scaling-parameters*  "../svm_scaling_parameters")
 
 
 (def ^:dynamic *svm-train-bin*  "../Regression/libsvm/svm-train")
@@ -93,40 +94,40 @@
                     avg-last-games avg-last-home-games avg-last-away-games avg-last-away-games
                     current-home event-cnt  home-events away-events
                     team-name opp-name last-salary cur-salary avg-salary
-                    avg-last-games7
-                    avg-last-home-games7
-                    avg-last-away-games7
+                    all-events
                     ] :as d}]
          [
           last-home-event-pts
           last-home-event-mins
           avg-last-away-games
-          ;event-cnt
-
-          ;last-event-pts
           avg-last-home-games
-          ;avg-last-games
-          ;last-away-event-pts
-          ;last-away-event-mins
           last-event-mins
-          ;(utils/bool->int current-home) -> TODO
-
           (count home-events)
 
           last-salary
           cur-salary
           avg-salary
 
+          ;;;;
+          event-cnt
+
+          last-event-pts
+          avg-last-games
+          last-away-event-pts
+          last-away-event-mins
+          (utils/bool->int current-home)
+
+
           ;avg-last-games7
           ;avg-last-home-games7
           ;avg-last-away-games7
 
-          ;(utils/nil->zero2 (:mins (get (reverse home-events) 0)))
-          ;(utils/nil->zero (ftps-keyword (get home-events 0)))
-          ;(utils/nil->zero2 (:mins (get (reverse home-events) 1)))
-          ;(utils/nil->zero (ftps-keyword (get home-events 1)))
-          ;(utils/nil->zero2 (:mins (get (reverse home-events) 2)))
-          ;(utils/nil->zero (ftps-keyword (get home-events 2)))
+          ;(utils/nil->zero2 (:mins (nth (reverse home-events) 0)))
+          ;(utils/nil->zero (ftps-keyword (nth home-events 0)))
+          ;(utils/nil->zero2 (:mins (nth (reverse home-events) 1)))
+          ;(utils/nil->zero (ftps-keyword (nth home-events 1)))
+          ;(utils/nil->zero2 (:mins (nth (reverse home-events) 2)))
+          ;(utils/nil->zero (ftps-keyword (nth home-events 2)))
           ;
           ;(utils/nil->zero2 (:mins (get (reverse away-events) 0)))
           ;(utils/nil->zero (ftps-keyword (get away-events 0)))
@@ -134,6 +135,13 @@
           ;(utils/nil->zero (ftps-keyword (get away-events 1)))
           ;(utils/nil->zero2 (:mins (get (reverse away-events) 2)))
           ;(utils/nil->zero (ftps-keyword (get away-events 2)))
+          ;
+          ;(utils/nil->zero2 (:mins (get (reverse all-events) 0)))
+          ;(utils/nil->zero (ftps-keyword (get all-events 0)))
+          ;(utils/nil->zero2 (:mins (get (reverse all-events) 1)))
+          ;(utils/nil->zero (ftps-keyword (get all-events 1)))
+          ;(utils/nil->zero2 (:mins (get (reverse all-events) 2)))
+          ;(utils/nil->zero (ftps-keyword (get all-events 2)))
 
 
           ;(get wins team-name)                              ;-> TODO
@@ -142,7 +150,6 @@
 
           (utils/nil->zero pts-current)])
        data))
-
 
 (defn write-for-svm
   [data-set outfile]
@@ -160,26 +167,63 @@
                 (recur (rest data) (inc index)))))))))
   (println (str "Data writen in " outfile ", count: " (count data-set))))
 
-(defn create-svm-model
-  [db contest-provider]
+
+(defn- create-svm-model
+  [train-set test-set]
+  (write-for-svm train-set *svm-train-file-unscaled*)
+  (write-for-svm test-set *svm-test-file-unscaled*)
+  ; COMMENTED, because scaling might be different in time of train and test
+  (let [{:keys [out]} (shell/sh *svm-scale-bin*
+                                "-s" *svm-scaling-parameters*
+                                *svm-train-file-unscaled*)]
+    (spit *svm-train-file* out))
+  (let [{:keys [out]} (shell/sh *svm-scale-bin*
+                                "-r" *svm-scaling-parameters*
+                                *svm-test-file-unscaled*)]
+    (spit *svm-test-file* out))
+  (let [{:keys [exit out err]} (shell/sh *svm-train-bin*
+                                         "-s" "3" "-p" "0.0001" "-t" "0" "-h" "0"
+                                         "-c" "0.03125" "-g" "0.0078125"
+                                         *svm-train-file*
+                                         *svm-model-file*)]
+    (if (= 0 exit)
+      (println (str "Train successful: " out))
+      (throw (Exception. (str "SVN train failed: " err)))))
+  (let [{:keys [exit out err]} (shell/sh *svm-test-bin*
+                                         *svm-test-file*
+                                         *svm-model-file*
+                                         *svm-test-output-file*)]
+    (if (= 0 exit)
+      (println (str "Test was successful: " out))
+      (throw (Exception. (str "SVN TEST failed: " err))))))
+
+(defn estimate-svm-model-accuracy
+  [db contest-provider player-names]
+  (let [ftps-keyword (model/get-point-function contest-provider)
+        train-set (create-array-for-regression
+                    (model/prepare-data db contest-provider player-names
+                                        :use-last false)
+                    ftps-keyword)
+        test-set (create-array-for-regression
+                   (model/prepare-data db contest-provider player-names
+                                       :use-last true :iteration-max 1)
+                   ftps-keyword)]
+    (create-svm-model train-set test-set)))
+
+
+(defn create-model
+  [db contest-provider player-names]
   (let [ftps-keyword (model/get-point-function contest-provider)
         points (create-array-for-regression
-                 (model/prepare-data db contest-provider)
+                 (model/prepare-data db contest-provider player-names)
                  ftps-keyword)
-        ;[test-set train-set ] (split-at (* (double (count points)) 0.2) points)
+        ;;[test-set train-set ] (split-at (* (double (count points)) 0.2) points)
         ;train-set (repeatedly (* (double (count points)) 0.8) #(rand-nth points))
         ;test-set (repeatedly (* (double (count points)) 0.2) #(rand-nth points))
         test-set points
         train-set points
         ]
-    (write-for-svm train-set *svm-train-file-unscaled*)
-    (write-for-svm test-set *svm-test-file-unscaled*)
-    (let [{:keys [out]} (shell/sh *svm-scale-bin* *svm-train-file-unscaled*)]
-      (spit *svm-train-file* out))
-    (let [{:keys [out]} (shell/sh *svm-scale-bin* *svm-test-file-unscaled*)]
-      (spit *svm-test-file* out))
-    (shell/sh *svm-train-bin* "-s" "3" "-p" "0.0001" "-t" "0"  *svm-train-file* *svm-model-file*)
-    (shell/sh *svm-test-bin* *svm-test-file* *svm-model-file* *svm-test-output-file*)))
+    (create-svm-model train-set test-set)))
 
 
 (defn predict-players
@@ -187,15 +231,19 @@
   (let [fpts-func (model/get-point-function contest-provider)
         feature-vector (create-array-for-regression
                          (map (fn [{:keys [Name]}]
-                               (let [{:keys [rotogrinder-events]}
+                               (let [{:keys [rotogrinder-events] :as db-player}
                                      (mc/find-one-as-map db c/*collection* {:Name Name})]
-                                 (model/predict-data-from-events
-                                   Name (sort-by :game-epoch rotogrinder-events) fpts-func)))
+                                 (model/predict-data-from-events Name
+                                                                 db-player
+                                                                 (sort-by :game-epoch rotogrinder-events)
+                                                                 fpts-func)))
                             players-data)
                          fpts-func)]
     (pp/pprint (first feature-vector))
     (write-for-svm feature-vector *svm-test-file-unscaled*)
-    (let [{:keys [out]} (shell/sh *svm-scale-bin* *svm-test-file-unscaled*)]
+    (let [{:keys [out]} (shell/sh *svm-scale-bin*
+                                  "-r" *svm-scaling-parameters*
+                                  *svm-test-file-unscaled*)]
       (spit *svm-test-file* out))
     (shell/sh *svm-test-bin* *svm-test-file* *svm-model-file* *svm-test-output-file*)
     (map (fn [player score]
