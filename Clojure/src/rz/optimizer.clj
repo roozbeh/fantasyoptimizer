@@ -12,18 +12,24 @@
             [rz.optimizers.coinmp :as coinmp]
             [rz.scrap.rotogrinder :as rotoscrap]
             [rz.scrap.espn :as espn]
+            [rz.model.model :as model]
             [rz.model.linear :as linear]
             [rz.model.svm :as svm]
             [rz.model.logistic :as logistic]
             [rz.optimizers.utils :as utils]
+            [incanter.stats :refer :all]
             [monger.collection :as mc])
   (:gen-class))
 
-(defn- force-db-update
+(defn- force-espn-update
   []
-  (espn/ingest-data (data/init-players-data-fanduel)
+  (espn/ingest-data (data/init-players-data-draftking2)
                          :force-update true))
 
+(defn- force-rotogrinders-update
+  []
+  (rotoscrap/ingest-data (data/init-players-data-draftking2)
+                    :force-update true))
 
 (defn ingest-data
   [players-data]
@@ -88,6 +94,25 @@
     (coinmp/lpsolve-solve-draftkings players-proj  :svm-projection)))
 
 
+(defn- optimize-draftking-lineups-avg
+  []
+  (let [db (utils/get-db)
+        players-data (data/init-players-data-draftking2)
+        players-data (data/remove-injured players-data)
+        player-names (map :Name players-data)
+        _  (ingest-data players-data)
+        coefs (linear/create-model db c/*draftking* player-names)
+        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)
+        players-proj (data/add-rotowires-projection players-proj c/*draftking*)
+        ;players-proj (rotoscrap/add-rotogrinders-projection players-proj c/*draftking*)
+        players-proj (map (fn [{:keys [Name linear-projection roto-wire-projection] :as p}]
+                            (assoc p :avg-proj (mean [linear-projection
+                                                      (utils/nil->zero roto-wire-projection)])))
+                          players-proj)]
+    (data/save-solutions
+      (coinmp/lpsolve-solve-draftkings players-proj  :avg-proj)
+      c/*draftking*)))
+
 ;TODO: to timestamp database, to make sure old data is not being regressioned!
 
 (defn save-projections-dk
@@ -103,8 +128,7 @@
         players-proj (svm/predict-players db players-data c/*draftking*)
         players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)
         players-proj (data/add-rotowires-projection players-proj c/*draftking*)]
-    (data/save-projections db players-proj)))
-
+    (data/save-projections db players-proj "02032015")))
 
 
 (defn get-team
@@ -128,23 +152,65 @@
 
   )
 
+(defn data-for-player
+  [Name]
+  (let [db (utils/get-db)
+        players-data (data/init-players-data-draftking2)
+        pinfo (first (filter #(= Name (:Name %)) players-data))
+        db-player (mc/find-one-as-map db c/*collection* {:Name Name})
+        ]
+    (model/predict-data-from-events pinfo db-player c/*draftking* :database :rotogrinder)))
 
-;(defn magic-series
-;  [N]
-;  (with-store (store)
-;              (let [L (vec (for [i (range N)]
-;                             (int-var (str i) 0 N)))] ; initialize L to be a vector of vars
-;                (doseq [i (range N)]
-;                  (constrain! ($= ($occurrences L i)
-;                                  (nth L i)))) ; L[i] = # of times i occurs in L
-;
-;                ; This is a redundant constraint, i.e. a constraint that doesn't change the feasibility of the problem
-;                ; but makes the solving faster: summation(i=0..N | i * L[i]) = N. (Think about it!)
-;                (constrain! ($= ($weighted-sum L (range N)) N))
-;
-;                (let [solved (solve!)]
-;                  (map solved (map str (range 0 N)))))))
+; force-espn-update
+; force-rotogrinders-update
+; save-projections-dk
+(comment
+  (def db (utils/get-db))
+  (def players (data/init-players-data-draftking2))
+  (defn sqr [x] (* x x))
+
+  (def players-data (data/remove-injured (data/init-players-data-draftking2)))
+  (def player-names (map :Name players-data))
+  (def espn-proj (let [coefs (linear/create-model db c/*draftking* player-names)
+                       players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
+                   (map (fn [{:keys [Name linear-projection]}]
+                          (let [{:keys [projections]}
+                                (mc/find-one-as-map (utils/get-db) c/*collection* {:Name Name})]
+                            [linear-projection
+                             Name
+                             (:last-actual projections)]))
+                        players-proj)))
 
 
+  (def espn-svm (let [o (svm/create-model db c/*draftking* player-names)
+                      players-proj (svm/predict-players db players-data c/*draftking*)]
+                   (map (fn [{:keys [Name svm-projection]}]
+                          (let [{:keys [projections]}
+                                (mc/find-one-as-map (utils/get-db) c/*collection* {:Name Name})]
+                            [svm-projection
+                             Name
+                             (:last-actual projections)]))
+                        players-proj)))
 
 
+  (def pproj (filter #(some? (first %)) pproj))
+  (println "linear error: " (reduce + (map (comp sqr -)
+                                           (map #(nth % 0) pproj)
+                                           (map last pproj))))
+
+
+  (def high-errors (map first
+                        (filter #(> (second %) 30)
+                           (map #(list (second %)
+                                       (abs (- (first %) (last %)))) pproj))))
+
+  (def players-data (data/init-players-data-draftking2))
+  (map
+    (fn [Name]
+      (let [pinfo (first (filter #(= Name (:Name %)) players-data))
+            db-player (mc/find-one-as-map db c/*collection* {:Name Name})
+            ]
+        (model/predict-data-from-events pinfo db-player c/*draftking* :database c/*active-database*)))
+    high-errors)
+
+    )

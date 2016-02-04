@@ -24,33 +24,43 @@
                     last-away-event-mins last-away-event-pts
                     avg-last-home-games
                     all-events all-scores
+                    season-salary last-event-points Name experience C G F
+                    is-top
                     ] :as d}]
-         [
-          ;espn
-          last-event-mins
-          avg-last-games
-          ;avg-last-home-games
-          ;avg-last-away-games
-          ;(nth (reverse all-scores) 1)
+         ;(println (str Name " -> " C " - " G " - " F))
+         (if (= :espn c/*active-database*)
+           [;espn
+            last-event-mins
+            avg-last-home-games
+            avg-last-away-games
+            (nth (reverse all-scores) 1)
+            experience
+            ;last-event-points
+            ;last-event-pts
+            ;avg-last-games
+            ;season-salary
+            ;C
+            ;is-top
+            ;(utils/bool->int current-home)
 
-          ;rotogrinder
-          ;avg-last-games
-          ;last-home-event-mins
-          ;avg-last-away-games
-          ;event-cnt
-          ;avg-salary
-          ;last-salary
-          ;(utils/bool->int current-home)
+            (utils/nil->zero pts-current)]
+           [;rotogrinder
+            avg-last-games
+            last-home-event-mins
+            avg-last-away-games
+            event-cnt
+            avg-salary
+            last-salary
+            (utils/bool->int current-home)
 
-          ;last-home-event-pts
-
-          (utils/nil->zero pts-current)])
+            (utils/nil->zero pts-current)]))
        data))
 
 (defn create-model
   ([db contest-provider player-names]
    (let [points (create-array-for-regression
                   (model/prepare-data db contest-provider player-names
+                                      :iteration-max 5
                                       :database c/*active-database*))
          ;points (take 10 points)
         {:keys [coefs f-prob t-probs mse r-square]}
@@ -71,24 +81,30 @@
         {:keys [last-home-event-mins last-home-event-pts avg-last-away-games event-cnt
                 last-salary cur-salary avg-salary last-event-pts
                 last-event-mins avg-last-home-games all-scores
-                avg-last-games current-home] :as d}
+                avg-last-games current-home season-salary
+                experience C G F is-top] :as d}
         (model/predict-data-from-events pinfo player ftps-keyword
                                         :database c/*active-database*)]
-    (+ (nth coefs 0)
-       (* (nth coefs 1) last-event-mins)
-       (* (nth coefs 2) avg-last-games)
-       ;(* (nth coefs 3) avg-last-home-games)
-       ;(* (nth coefs 4) avg-last-away-games)
-       ;(* (nth coefs 5) (nth (reverse all-scores) 1))
+    (if (= :espn c/*active-database*)
+      (+ (nth coefs 0)
+         (* (nth coefs 1) last-event-mins)
+         (* (nth coefs 2) avg-last-home-games)
+         (* (nth coefs 3) avg-last-away-games)
+         (* (nth coefs 4) (nth (reverse all-scores) 1))
+         (* (nth coefs 5) experience)
+         ;(* (nth coefs 6) season-salary)
+         ;(* (nth coefs 8) C)
+         ;(* (nth coefs 9) is-top)
 
-
-       ;(* (nth coefs 1) avg-last-games)
-       ;(* (nth coefs 2) last-home-event-mins)
-       ;(* (nth coefs 3) avg-last-away-games)
-       ;(* (nth coefs 4) event-cnt)
-       ;(* (nth coefs 5) avg-salary)
-       ;(* (nth coefs 6) last-salary)
-       ;(* (nth coefs 7) (utils/bool->int current-home))
+         )
+      (+ (nth coefs 0)
+         (* (nth coefs 1) avg-last-games)
+         (* (nth coefs 2) last-home-event-mins)
+         (* (nth coefs 3) avg-last-away-games)
+         (* (nth coefs 4) event-cnt)
+         (* (nth coefs 5) avg-salary)
+         (* (nth coefs 6) last-salary)
+         (* (nth coefs 7) (utils/bool->int current-home)))
 
        ;(* (nth coefs 1) avg-last-games)
        ;(* (nth coefs 2) last-home-event-mins)
@@ -121,72 +137,72 @@
 
 
 ; -------------- across projections ------------------
-(defn load-yesterday-proj-and-actual
-  [db players-data]
-  (let [names (map :Name players-data)
-        db-players (mc/find-maps db c/*collection* {:name { $in names } })]
-    (map #(assoc % :actual (read-string (:actual %)))
-         (filter #(and (some? %) (some? (:actual %)))
-                 (map (fn [{:keys [projections Name rotogrinder-events]}]
-                        (assoc (:01302015 projections) :Name Name
-                                                   :actual (:draftking-fpts
-                                                             (first
-                                                               (filter #(= (:game-date %) "1/29/16")
-                                                                       rotogrinder-events)))))
-                      db-players)))))
-
-
-(defn prepare-projections-data
-  [data]
-  (map (fn [{:keys [actual linear-projection svm-projection roto-wire-projection]}]
-         [
-          linear-projection
-          svm-projection
-          roto-wire-projection
-          actual])
-       (filter #(some? (:roto-wire-projection %)) data)))
-
-(defn create-cross-proj-model
-  [db players-data]
-  (let [points (prepare-projections-data
-                 (load-yesterday-proj-and-actual db players-data))
-        {:keys [coefs f-prob t-probs mse r-square]}
-          (linear-model (map last points) (map #(take (dec (count (first points))) %) points))]
-    (println (str "f-prob: " f-prob ", mse: " mse ", R^2: " r-square))
-    (println "t-probs")
-    (pp/pprint t-probs)
-    (println "coefs")
-    (pp/pprint coefs)
-    coefs))
-
-(defn draw-proj-data
-  [db players-data]
-  (let [points (prepare-projections-data
-                 (load-yesterday-proj-and-actual db players-data))
-        coefs (create-cross-proj-model db players-data)
-        real-vals (map last points)
-        ;projection (map #(+ (nth coefs 0)
-        ;                    (* (nth coefs 1) (nth % 0))
-        ;                    (* (nth coefs 2) (nth % 1))
-        ;                    ) points)
-        ;linear (map #(nth % 0) points)
-        ;svm (map #(nth % 1) points)
-        roto (map #(nth % 2) points)
-        ]
-    (doto
-      (charts/scatter-plot real-vals roto :legend true)
-      (charts/add-function (fn [n] n) -5 80)
-      view "linear")))
-
-(defn draw-data
-  [db contest-provider coefs]
-  (let [ftps-keyword (if (= contest-provider c/*fanduel*) :fanduel-fpts :draftking-fpts)
-        points (create-array-for-regression (model/prepare-data db contest-provider))
-        real-vals (map last points)
-        projection (map #(+ (nth coefs 0)
-                            (* (nth coefs 1) (nth % 0))
-                            (* (nth coefs 2) (nth % 1))
-                            (* (nth coefs 3) (nth % 2))
-                            (* (nth coefs 4) (nth % 3))) points)]
-    (view (charts/scatter-plot real-vals projection :legend true))))
-
+;(defn load-yesterday-proj-and-actual
+;  [db players-data]
+;  (let [names (map :Name players-data)
+;        db-players (mc/find-maps db c/*collection* {:name { $in names } })]
+;    (map #(assoc % :actual (read-string (:actual %)))
+;         (filter #(and (some? %) (some? (:actual %)))
+;                 (map (fn [{:keys [projections Name rotogrinder-events]}]
+;                        (assoc (:01302015 projections) :Name Name
+;                                                   :actual (:draftking-fpts
+;                                                             (first
+;                                                               (filter #(= (:game-date %) "1/29/16")
+;                                                                       rotogrinder-events)))))
+;                      db-players)))))
+;
+;
+;(defn prepare-projections-data
+;  [data]
+;  (map (fn [{:keys [actual linear-projection svm-projection roto-wire-projection]}]
+;         [
+;          linear-projection
+;          svm-projection
+;          roto-wire-projection
+;          actual])
+;       (filter #(some? (:roto-wire-projection %)) data)))
+;
+;(defn create-cross-proj-model
+;  [db players-data]
+;  (let [points (prepare-projections-data
+;                 (load-yesterday-proj-and-actual db players-data))
+;        {:keys [coefs f-prob t-probs mse r-square]}
+;          (linear-model (map last points) (map #(take (dec (count (first points))) %) points))]
+;    (println (str "f-prob: " f-prob ", mse: " mse ", R^2: " r-square))
+;    (println "t-probs")
+;    (pp/pprint t-probs)
+;    (println "coefs")
+;    (pp/pprint coefs)
+;    coefs))
+;
+;(defn draw-proj-data
+;  [db players-data]
+;  (let [points (prepare-projections-data
+;                 (load-yesterday-proj-and-actual db players-data))
+;        coefs (create-cross-proj-model db players-data)
+;        real-vals (map last points)
+;        ;projection (map #(+ (nth coefs 0)
+;        ;                    (* (nth coefs 1) (nth % 0))
+;        ;                    (* (nth coefs 2) (nth % 1))
+;        ;                    ) points)
+;        ;linear (map #(nth % 0) points)
+;        ;svm (map #(nth % 1) points)
+;        roto (map #(nth % 2) points)
+;        ]
+;    (doto
+;      (charts/scatter-plot real-vals roto :legend true)
+;      (charts/add-function (fn [n] n) -5 80)
+;      view "linear")))
+;
+;(defn draw-data
+;  [db contest-provider coefs]
+;  (let [ftps-keyword (if (= contest-provider c/*fanduel*) :fanduel-fpts :draftking-fpts)
+;        points (create-array-for-regression (model/prepare-data db contest-provider))
+;        real-vals (map last points)
+;        projection (map #(+ (nth coefs 0)
+;                            (* (nth coefs 1) (nth % 0))
+;                            (* (nth coefs 2) (nth % 1))
+;                            (* (nth coefs 3) (nth % 2))
+;                            (* (nth coefs 4) (nth % 3))) points)]
+;    (view (charts/scatter-plot real-vals projection :legend true))))
+;

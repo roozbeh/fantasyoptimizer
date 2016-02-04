@@ -10,10 +10,10 @@
             [incanter.stats :refer :all]
             [rz.optimizers.utils :as utils]))
 
-(def players-csv-fd "../data/fd_nba_feb_3.csv")
+(def players-csv-fd "../data/fd_nba_feb_4.csv")
 ;(def players-csv-dk "../data/dk_nba_jan_30.csv")
 
-(def lineup-csv-dk "../data/dk_nba_linup_feb_3.csv")
+(def lineup-csv-dk "../data/dk_nba_linup_feb_4.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
 
@@ -191,21 +191,24 @@
 ;          players-data))
 
 (defn save-projections
-  [db players-proj]
+  [db players-proj key-name]
   (doall
     (map
       (fn [{:keys [Name linear-projection svm-projection roto-wire-projection]}]
         (try
-          (println (str "Setting projection data for " Name ))
           (let [{:keys [projections] :as db-player}
                 (mc/find-one-as-map db c/*collection* {:Name Name})]
             (mc/update db c/*collection* {:Name Name}
                      (assoc db-player
                        :projections
-                       (assoc projections "01312015"
+
                                           {:linear-projection linear-projection
+                                           ;:last-actual (utils/nil->zero
+                                           ;               (:draftking-fpts
+                                           ;                 (first (filter #(= "2/3/16" (:game-date %))
+                                           ;                                (:rotogrinder-events db-player)))))
                                            :svm-projection svm-projection
-                                           :roto-wire-projection roto-wire-projection}))))
+                                           :roto-wire-projection roto-wire-projection})))
           (catch Exception e
             (println (str "ERROR in updating " Name " data, Exception: " e)))))
       players-proj))

@@ -94,62 +94,58 @@
                     avg-last-games avg-last-home-games avg-last-away-games avg-last-away-games
                     current-home event-cnt  home-events away-events
                     team-name opp-name last-salary cur-salary avg-salary
-                    all-events
+                    all-events all-scores season-salary experience C is-top Name
                     ] :as d}]
-         [
-          last-home-event-pts
-          last-home-event-mins
-          avg-last-away-games
-          avg-last-home-games
-          last-event-mins
-          (count home-events)
-
-          last-salary
-          cur-salary
-          avg-salary
-
-          ;;;;
-          event-cnt
-
-          last-event-pts
-          avg-last-games
-          last-away-event-pts
-          last-away-event-mins
-          (utils/bool->int current-home)
+         (if (= :espn c/*active-database*)
+            [;espn
+             last-event-mins
+             avg-last-games
+             avg-last-home-games
+             avg-last-away-games
+             (nth (reverse all-scores) 1)
+             season-salary
+             experience
+             C
+             is-top
 
 
-          ;avg-last-games7
-          ;avg-last-home-games7
-          ;avg-last-away-games7
+             last-home-event-mins
+             event-cnt
+             (utils/bool->int current-home)
+             (utils/nil->zero pts-current)
+             last-home-event-pts
+             last-home-event-mins
+             last-event-pts
+             last-away-event-pts
+             last-away-event-mins
 
-          ;(utils/nil->zero2 (:mins (nth (reverse home-events) 0)))
-          ;(utils/nil->zero (ftps-keyword (nth home-events 0)))
-          ;(utils/nil->zero2 (:mins (nth (reverse home-events) 1)))
-          ;(utils/nil->zero (ftps-keyword (nth home-events 1)))
-          ;(utils/nil->zero2 (:mins (nth (reverse home-events) 2)))
-          ;(utils/nil->zero (ftps-keyword (nth home-events 2)))
-          ;
-          ;(utils/nil->zero2 (:mins (get (reverse away-events) 0)))
-          ;(utils/nil->zero (ftps-keyword (get away-events 0)))
-          ;(utils/nil->zero2 (:mins (get (reverse away-events) 1)))
-          ;(utils/nil->zero (ftps-keyword (get away-events 1)))
-          ;(utils/nil->zero2 (:mins (get (reverse away-events) 2)))
-          ;(utils/nil->zero (ftps-keyword (get away-events 2)))
-          ;
-          ;(utils/nil->zero2 (:mins (get (reverse all-events) 0)))
-          ;(utils/nil->zero (ftps-keyword (get all-events 0)))
-          ;(utils/nil->zero2 (:mins (get (reverse all-events) 1)))
-          ;(utils/nil->zero (ftps-keyword (get all-events 1)))
-          ;(utils/nil->zero2 (:mins (get (reverse all-events) 2)))
-          ;(utils/nil->zero (ftps-keyword (get all-events 2)))
-
-
-          ;(get wins team-name)                              ;-> TODO
-          ;(get loss team-name)                              ;-> TODO
-          ;(- (get wins team-name) (get loss team-name))
-
-          (utils/nil->zero pts-current)])
-       data))
+             (utils/nil->zero pts-current)]
+            [;rotogrinder
+             avg-last-games
+             last-home-event-mins
+             avg-last-away-games
+             event-cnt
+             avg-salary
+             last-salary
+             (utils/bool->int current-home)
+             (utils/nil->zero pts-current)
+             last-home-event-pts
+             last-home-event-mins
+             avg-last-away-games
+             avg-last-home-games
+             last-event-mins
+             (count home-events)
+             last-salary
+             cur-salary
+             avg-salary
+             event-cnt
+             last-event-pts
+             avg-last-games
+             last-away-event-pts
+             last-away-event-mins
+             (utils/bool->int current-home)
+             (utils/nil->zero pts-current)]))
+         data))
 
 (defn write-for-svm
   [data-set outfile]
@@ -207,7 +203,8 @@
                     ftps-keyword)
         test-set (create-array-for-regression
                    (model/prepare-data db contest-provider player-names
-                                       :use-last true :iteration-max 1)
+                                       :use-last true :iteration-max 1
+                                       :database c/*active-database*)
                    ftps-keyword)]
     (create-svm-model train-set test-set)))
 
@@ -233,8 +230,7 @@
   (let [fpts-func (model/get-point-function contest-provider)
         feature-vector (create-array-for-regression
                          (map (fn [{:keys [Name] :as pinfo}]
-                               (let [{:keys [rotogrinder-events] :as db-player}
-                                     (mc/find-one-as-map db c/*collection* {:Name Name})]
+                               (let [db-player (mc/find-one-as-map db c/*collection* {:Name Name})]
                                  (model/predict-data-from-events pinfo
                                                                  db-player
                                                                  fpts-func

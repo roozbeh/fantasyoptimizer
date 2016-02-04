@@ -129,45 +129,61 @@
 
 (defn ingest-player
   [{:keys [GameLogUrl PlayerURL] :as espn-player}]
-  {
-   :ESPN-data   espn-player
-   :ingest-date (.getTime (new Date))
-   :events
-                (filter
-                  #(not (= (:DATE %) "Wed 2/3"))
-                  (map (fn [l]
-                       (let [DATE (-> l :content first :content first)
-                             [three-PM three-PA] (string/split (-> l :content (nth 6) :content first) #"-")
-                             [FTM FTA] (string/split (-> l :content (nth 8) :content first) #"-")]
-                         {
-                          :DATE                DATE
-                          :game-date           (add-year DATE)
-                          :game-epoch          (.getTime (.parse (SimpleDateFormat. "EEE MM/dd/yyyy") (add-year DATE)))
-                          :home-game           (= "vs" (-> (html/select l [:.game-schedule :.game-location]) first :content first))
-                          :opp-team            (or (-> (html/select l [:.team-name :a]) first :content first)
-                                                   (-> (html/select l [:.team-name]) first :content first))
-                          :match-status        (-> (html/select l [#{:.redfont :.greenfont}]) first :content first)
-                          :match-result        (-> l :content (nth 2) :content last :content first)
-                          :mins                (-> l :content (nth 3) :content first utils/nil->zero)
-                          :FGM-FGA             (-> l :content (nth 4) :content first)
-                          :FieldGoalPercentage (-> l :content (nth 5) :content first)
-                          :three-PM            (utils/nil->zero three-PM)
-                          :three-PA            three-PA
-                          :three-p-percentage  (-> l :content (nth 7) :content first)
-                          :FTM                 (utils/nil->zero FTM)
-                          :FTA                 FTA
-                          :FTP                 (-> l :content (nth 9) :content first)
-                          :rebounds            (-> l :content (nth 10) :content first utils/nil->zero)
-                          :assists             (-> l :content (nth 11) :content first utils/nil->zero)
-                          :blocks              (-> l :content (nth 12) :content first utils/nil->zero)
-                          :steals              (-> l :content (nth 13) :content first utils/nil->zero)
-                          :fouls               (-> l :content (nth 14) :content first)
-                          :turnover            (-> l :content (nth 15) :content first utils/nil->zero)
-                          :points              (-> l :content (nth 16) :content first utils/nil->zero)}))
-                     (filter #(= 17 (count (:content %)))
-                             (filter-2016 (fail-safe-game-log GameLogUrl PlayerURL))))
-                  )
-   })
+  (let [game-log (fail-safe-game-log GameLogUrl PlayerURL)
+        player-profile (fetch-with-retry PlayerURL)
+        salary-node (html/select player-profile [:body :div.mod-content :ul :li :dt :strong])
+        exp-node (-> (html/select game-log [:.player-metadata :li]) last :content second read-string)
+        leaderboard-node (html/select game-log [:.general-info :.first])
+        ]
+    {:ESPN-data   espn-player
+     :ingest-date (.getTime (new Date))
+     :salary (if (empty? salary-node)
+               0
+               (-> salary-node first :content first (string/replace-first #"\$" "") (string/replace #"," "") read-string))
+     :experience (if exp-node
+                   (if (number? exp-node)
+                     exp-node
+                     0)
+                   0)
+     :leaderboard-rank (if (empty? leaderboard-node)
+                         100
+                         (-> leaderboard-node first :content first (string/replace #"#" "") read-string))
+     :events
+                  ;(filter
+                  ;  #(not (= (:DATE %) "Wed 2/3"))
+                    (map (fn [l]
+                         (let [DATE (-> l :content first :content first)
+                               [three-PM three-PA] (string/split (-> l :content (nth 6) :content first) #"-")
+                               [FTM FTA] (string/split (-> l :content (nth 8) :content first) #"-")]
+                           {
+                            :DATE                DATE
+                            :game-date           (add-year DATE)
+                            :game-epoch          (.getTime (.parse (SimpleDateFormat. "EEE MM/dd/yyyy") (add-year DATE)))
+                            :home-game           (= "vs" (-> (html/select l [:.game-schedule :.game-location]) first :content first))
+                            :opp-team            (or (-> (html/select l [:.team-name :a]) first :content first)
+                                                     (-> (html/select l [:.team-name]) first :content first))
+                            :match-status        (-> (html/select l [#{:.redfont :.greenfont}]) first :content first)
+                            :match-result        (-> l :content (nth 2) :content last :content first)
+                            :mins                (-> l :content (nth 3) :content first utils/nil->zero)
+                            :FGM-FGA             (-> l :content (nth 4) :content first)
+                            :FieldGoalPercentage (-> l :content (nth 5) :content first)
+                            :three-PM            (utils/nil->zero three-PM)
+                            :three-PA            three-PA
+                            :three-p-percentage  (-> l :content (nth 7) :content first)
+                            :FTM                 (utils/nil->zero FTM)
+                            :FTA                 FTA
+                            :FTP                 (-> l :content (nth 9) :content first)
+                            :rebounds            (-> l :content (nth 10) :content first utils/nil->zero)
+                            :assists             (-> l :content (nth 11) :content first utils/nil->zero)
+                            :blocks              (-> l :content (nth 12) :content first utils/nil->zero)
+                            :steals              (-> l :content (nth 13) :content first utils/nil->zero)
+                            :fouls               (-> l :content (nth 14) :content first)
+                            :turnover            (-> l :content (nth 15) :content first utils/nil->zero)
+                            :points              (-> l :content (nth 16) :content first utils/nil->zero)}))
+                       (filter #(= 17 (count (:content %)))
+                               (filter-2016 game-log)))
+                    ;)
+     }))
 
 (def espn-name-mapping
   {"Lou Amundson" "Louis Amundson"
@@ -178,6 +194,7 @@
    "JaKarr Sampson" "Jakarr Sampson"
    "JJ Hickson" "J.J. Hickson"
    "Dante Exum" "Danté Exum"
+   "Louis Williams" "Lou Williams"
    ;"Joe Young" "Joseph Young"
    ;"Bryce Dejean-Jones" "Bryce Jones"
    ;"Patty Mills" "Patrick Mills"
@@ -233,7 +250,7 @@
                                   (nil? (:espn-data db-player))
                                   (empty? (:events (:espn-data db-player))))
                             (do
-                              (println (str "Loading data for " Name))
+                              (println (str "Loading data for " Name "->" (map-espn-names Name)))
                               (scrap/add-data-to-player db (map-espn-names Name)
                                                         :espn-data (add-score (ingest-player espn-player))))))))
                     players)))))

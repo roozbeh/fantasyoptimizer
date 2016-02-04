@@ -77,7 +77,7 @@
      }))
 
 (defn- data-from-events-espn
-  [{:keys [Name Position]} event-current events contest-provider]
+  [{:keys [Name Position espn-data]} event-current events contest-provider]
   (let [ftps-keyword (get-point-function contest-provider)
         event-last (last events)
         home-events (filter #(= true (:home-game %)) events)
@@ -96,6 +96,7 @@
     {:Name Name
      :last-event-mins (utils/nil->zero2 (:mins event-last))
      :last-event-pts (utils/nil->zero (ftps-keyword event-last))
+     :last-event-points (utils/nil->zero2 (:points event-last))
 
      :last-home-event-mins (utils/nil->zero2 (:mins last-home-event))
      :last-home-event-pts (utils/nil->zero (ftps-keyword last-home-event))
@@ -110,11 +111,20 @@
      :current-home (get event-current :home-game -1)
      :event-cnt (count events)
 
+     :season-salary (:salary espn-data)
+     :experience (:experience espn-data)
+     :is-top (utils/bool->int (< (:leaderboard-rank espn-data) 1))
+
+     :G (utils/bool->int (or (= "PG" Position) (= "SG" Position)))
+     :F (utils/bool->int (or (= "PF" Position) (= "SF" Position)))
+     :C (utils/bool->int (= "C" Position))
+
      ;:home-events home-events
      ;:away-events away-events
      :all-scores (if (or (empty? all-scores)
                          (< (count all-scores) 2))
-                   [0 0 0 0] all-scores)
+                   [0 0 0 0]
+                   all-scores)
 
      :team-name (:team-name event-current)
      :opp-name (:opp-name event-current)

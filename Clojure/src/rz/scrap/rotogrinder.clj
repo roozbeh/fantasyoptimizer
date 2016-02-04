@@ -57,16 +57,16 @@
 
 
 (defn verify-data
-  [{:keys [fd-salary dk-salary]}]
+  [{:keys [fd-salary dk-salary game-date]}]
   (and true
        (not (= 0 dk-salary))
        (not (= 0 fd-salary))
+       ;(not (= "2/3/16" game-date))
        ))
 
 (defn ingest-player-info
-  [db {:keys [rotogrinder-id Name rotogrinder-events]}]
+  [db {:keys [rotogrinder-id Name]}]
   (let [url (str "https://rotogrinders.com/players/" rotogrinder-id "/stats?range=this-season")
-        _ (println url)
         ret (utils/fetch-url url)
         stats-data (json/read-str (-> ret first :content first :content first) :key-fn keyword)]
     (scrap/add-data-to-player db Name :rotogrinder-events
@@ -131,4 +131,16 @@
     (get-rotogrinder-data db force-update)))
 
 
+
+(defn add-rotogrinders-projection
+  [db players-data]
+    (map (fn [{:keys [Name] :as p}]
+           (let [{:keys [rotogrinder-id]} (mc/find-one-as-map db c/*collection* {:Name name})
+                 ret (utils/fetch-url (str "https://rotogrinders.com/players/devin-booker-" rotogrinder-id))
+                 projection (-> (html/select ret [:li.d :.value]) last :content first read-string)]
+             (assoc p
+                   :rotogrinders-projection (if (number? projection)
+                                              projection
+                                              0))))
+         players-data))
 
