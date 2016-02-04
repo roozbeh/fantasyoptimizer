@@ -3,6 +3,7 @@
             [monger.collection :as mc]
             [rz.data :as data]
             [rz.optimizers.utils :as utils]
+            [rz.scrap.scrap :as scrap]
             [net.cgrand.enlive-html :as html]
             [clojure.data.json :as json]
             [cemerick.url :as url]
@@ -18,17 +19,6 @@
 
 (def ^:dynamic *rotogrind-draftking-id* "20")
 (def ^:dynamic *rotogrind-fanduel-id* "2")
-
-(defn create-players
-  [db players-data]
-  (doall
-    (map (fn [p]
-           (if (empty? (mc/find-maps db c/*collection* {:Name (:Name p)}))
-             (mc/insert db c/*collection* p)
-             ;(println (str "Player already exists: " (:Name p)))
-             ))
-        players-data)))
-
 
 (defn get-rotogrinder-id-name
   [db]
@@ -66,12 +56,6 @@
                    :rotogrinder-id id)))))
 
 
-(defn add-data-to-player
-  [db name key value]
-  (mc/update db c/*collection* {:Name name}
-             (assoc (mc/find-one-as-map db c/*collection* {:Name name})
-               key value)))
-
 (defn verify-data
   [{:keys [fd-salary dk-salary]}]
   (and true
@@ -85,7 +69,7 @@
         _ (println url)
         ret (utils/fetch-url url)
         stats-data (json/read-str (-> ret first :content first :content first) :key-fn keyword)]
-    (add-data-to-player db Name :rotogrinder-events
+    (scrap/add-data-to-player db Name :rotogrinder-events
                         (filter verify-data
                           (map (fn [[event-id {:keys [data]}]]
                                  (let [{:keys [player fantasy_points stats schedule team_id game_stat_mappings]} data
@@ -142,7 +126,7 @@
   [players-data & {:keys [force-update] :or {force-update false}}]
   (println (str "ingest-data, force update: " force-update))
   (let [db (utils/get-db)]
-    (create-players db players-data)
+    (scrap/create-players db players-data)
     (get-rotogrinder-id-name db)
     (get-rotogrinder-data db force-update)))
 

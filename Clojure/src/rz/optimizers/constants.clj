@@ -14,3 +14,7 @@
 
 (def ^:dynamic *average-games-count* 3)
 (def ^:dynamic *average-games-count7* 7)
+
+;(def ^:dynamic *active-database* :rotogrinder)
+(def ^:dynamic *active-database* :espn)
+

@@ -10,7 +10,7 @@
   [x]
   (if (nil? x)
     0
-    (if string?
+    (if (string? x)
       (read-string x)
       x)))
 

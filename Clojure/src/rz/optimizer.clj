@@ -11,6 +11,7 @@
             [rz.optimizers.constants :as c]
             [rz.optimizers.coinmp :as coinmp]
             [rz.scrap.rotogrinder :as rotoscrap]
+            [rz.scrap.espn :as espn]
             [rz.model.linear :as linear]
             [rz.model.svm :as svm]
             [rz.model.logistic :as logistic]
@@ -23,13 +24,20 @@
   (rotoscrap/ingest-data (data/init-players-data-fanduel)
                          :force-update true))
 
+(defn ingest-data
+  [players-data]
+  (cond
+    (= c/*active-database* :rotogrinder) (rotoscrap/ingest-data players-data)
+    (= c/*active-database* :espn) (espn/ingest-data players-data)
+    true (assert false (str "Unknown database " c/*active-database*))))
+
 (defn- optimize-fanduel-lineups
   []
   (let [db (utils/get-db)
         players-data (data/init-players-data-fanduel)
         players-data (data/remove-injured players-data)
         player-names (map :Name players-data)
-        _   (rotoscrap/ingest-data players-data)
+        _  (ingest-data players-data)
         coefs (linear/create-model db c/*fanduel* player-names)
         players-proj (linear/add-linear-projection db players-data coefs c/*fanduel*)
         ]
@@ -41,7 +49,7 @@
         players-data (data/init-players-data-fanduel)
         players-data (data/remove-injured players-data)
         player-names (map :Name players-data)
-        _   (rotoscrap/ingest-data players-data)
+        _  (ingest-data players-data)
         o (svm/create-model db c/*fanduel* player-names)
         _ (println o)
         coefs (linear/create-model db c/*fanduel* player-names)
@@ -55,7 +63,7 @@
         players-data (data/init-players-data-draftking2)
         players-data (data/remove-injured players-data)
         player-names (map :Name players-data)
-        _   (rotoscrap/ingest-data players-data)
+        _  (ingest-data players-data)
         coefs (linear/create-model db c/*draftking* player-names)
         players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
     (data/save-solutions
@@ -65,10 +73,10 @@
 (defn- optimize-draftking-lineups-svm
   []
   (let [db (utils/get-db)
-        players-data (data/init-players-data-draftking)
+        players-data (data/init-players-data-draftking2)
         players-data (data/remove-injured players-data)
         player-names (map :Name players-data)
-        _   (rotoscrap/ingest-data players-data)
+        _  (ingest-data players-data)
         o (svm/create-model db c/*draftking* player-names)
         _ (println o)
         coefs (linear/create-model db c/*draftking* player-names)
@@ -82,7 +90,7 @@
 (defn save-projections-dk
   []
   (let [db (utils/get-db)
-        players-data (data/init-players-data-draftking)
+        players-data (data/init-players-data-draftking2)
         players-data (data/remove-injured players-data)
         _   (rotoscrap/ingest-data players-data)
         player-names (map :Name players-data)

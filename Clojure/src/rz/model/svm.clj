@@ -202,7 +202,8 @@
   (let [ftps-keyword (model/get-point-function contest-provider)
         train-set (create-array-for-regression
                     (model/prepare-data db contest-provider player-names
-                                        :use-last false)
+                                        :use-last false
+                                        :database c/*active-database*)
                     ftps-keyword)
         test-set (create-array-for-regression
                    (model/prepare-data db contest-provider player-names
@@ -215,7 +216,8 @@
   [db contest-provider player-names]
   (let [ftps-keyword (model/get-point-function contest-provider)
         points (create-array-for-regression
-                 (model/prepare-data db contest-provider player-names)
+                 (model/prepare-data db contest-provider player-names
+                                     :database c/*active-database*)
                  ftps-keyword)
         ;;[test-set train-set ] (split-at (* (double (count points)) 0.2) points)
         ;train-set (repeatedly (* (double (count points)) 0.8) #(rand-nth points))
@@ -236,7 +238,8 @@
                                  (model/predict-data-from-events Name
                                                                  db-player
                                                                  (sort-by :game-epoch rotogrinder-events)
-                                                                 fpts-func)))
+                                                                 fpts-func
+                                                                 :database c/*active-database*)))
                             players-data)
                          fpts-func)]
     (pp/pprint (first feature-vector))

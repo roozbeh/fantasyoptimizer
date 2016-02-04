@@ -20,7 +20,7 @@
     :dk-salary))
 
 
-(defn- data-from-events
+(defn- data-from-events-rotogrinder
   [{:keys [Name Position]} event-current events contest-provider]
   (let [ftps-keyword (get-point-function contest-provider)
         salary-keyword (get-salary-function contest-provider)
@@ -76,34 +76,107 @@
      :avg-salary (utils/array->mean (map salary-keyword events))
      }))
 
+(defn- data-from-events-espn
+  [{:keys [Name Position]} event-current events contest-provider]
+  (let [ftps-keyword (get-point-function contest-provider)
+        event-last (last events)
+        home-events (filter #(= true (:home-game %)) events)
+        away-events (filter #(= false (:home-game %)) events)
+        last-home-event (last home-events)
+        last-away-event (last away-events)
+
+        all-scores (map (comp utils/nil->zero ftps-keyword) events)
+        home-scores (map (comp utils/nil->zero ftps-keyword) home-events)
+        away-scores (map (comp utils/nil->zero ftps-keyword) away-events)
+
+        avg-last-games (utils/array->mean (take-last c/*average-games-count* all-scores))
+        avg-last-home-games (utils/array->mean (take-last c/*average-games-count* home-scores))
+        avg-last-away-games (utils/array->mean (take-last c/*average-games-count* away-scores))
+        ]
+    {:Name Name
+     :last-event-mins (utils/nil->zero2 (:mins event-last))
+     :last-event-pts (utils/nil->zero (ftps-keyword event-last))
+
+     :last-home-event-mins (utils/nil->zero2 (:mins last-home-event))
+     :last-home-event-pts (utils/nil->zero (ftps-keyword last-home-event))
+     ;
+     :last-away-event-mins (utils/nil->zero2 (:mins last-away-event))
+     :last-away-event-pts (utils/nil->zero (ftps-keyword last-away-event))
+
+     :avg-last-games avg-last-games
+     :avg-last-home-games avg-last-home-games
+     :avg-last-away-games avg-last-away-games
+
+     :current-home (get event-current :home-game -1)
+     :event-cnt (count events)
+
+     ;:home-events home-events
+     ;:away-events away-events
+     :all-scores (if (or (empty? all-scores)
+                         (< (count all-scores) 2))
+                   [0 0 0 0] all-scores)
+
+     :team-name (:team-name event-current)
+     :opp-name (:opp-name event-current)
+
+     ;label -> only for train
+     :pts-current (get event-current ftps-keyword -1)
+
+     ;:last-salary (get event-last salary-keyword 0)
+     ;:cur-salary  (if (nil? (salary-keyword event-current))
+     ;               (:Salary event-current)
+     ;               (salary-keyword event-current))
+     ;:avg-salary (utils/array->mean (map salary-keyword events))
+     }))
+
+
+
+(defn- data-from-events
+  [p c e cp database]
+  (cond
+    (= database :rotogrinder) (data-from-events-rotogrinder p c e cp)
+    (= database :espn) (data-from-events-espn p c e cp)
+    true (assert false (str "Unknown database " database))))
+
 (defn- train-data-from-events
-  [db-player sorted-events contest-provider]
+  [db-player sorted-events contest-provider database]
   (let [event-current (last sorted-events)
         events (butlast sorted-events)]
-    (data-from-events db-player event-current events contest-provider)))
+    (data-from-events db-player event-current events contest-provider database)))
 
 (defn predict-data-from-events
-  [{:keys [Name Salary IsHome]} db-player sorted-events contest-provider]
+  [{:keys [Name Salary IsHome]} db-player sorted-events contest-provider
+   & {:keys [database] :or {database :rotogrinder}}]
   (data-from-events db-player
                     {:home-game IsHome
                      :Salary Salary
                      (get-point-function contest-provider) "-1"}
                     sorted-events
-                    contest-provider))
+                    contest-provider
+                    database))
 
 (defn load-players
   [db player-names]
   (if (nil? player-names)
     (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} } })
-    (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} }
-                                     :Name {$in player-names}})))
+    (mc/find-maps db c/*collection* {:Name {$in player-names}})))
+
+(defn get-events-from-player
+  [{:keys [rotogrinder-events espn-data] :as db-player} database]
+  (cond
+    (= database :rotogrinder) rotogrinder-events
+    (= database :espn) (:events espn-data)
+    true (assert false (str "Unknown database " database))))
 
 (defn- prepare-data-for-regression-recursive
-  [db contest-provider player-names iteration-max use-last]
+  [db contest-provider player-names iteration-max use-last database]
   (flatten
     (map
-      (fn [{:keys [Name rotogrinder-events teamAbbrev] :as db-player}]
-        (let [all-sorted-events (sort-by :game-epoch rotogrinder-events)
+      (fn [{:keys [Name  teamAbbrev] :as db-player}]
+        (let [
+              all-sorted-events (get-events-from-player db-player database)
+              _ (if (nil? all-sorted-events)
+                  (println (str "WARNING: no data for " Name)))
               sorted-events (if use-last all-sorted-events (butlast all-sorted-events))
               butlast-events (butlast sorted-events)
               home-events (filter #(= true (:home-game %)) butlast-events)
@@ -120,7 +193,7 @@
               result
               (recur (inc iteration)
                      (butlast events)
-                     (conj result (train-data-from-events db-player events contest-provider)))))))
+                     (conj result (train-data-from-events db-player events contest-provider database)))))))
       (load-players db player-names))))
 
 
@@ -133,11 +206,11 @@
 
 
 (defn prepare-data
-  ([db contest-provider player-names & {:keys [iteration-max use-last]
-                                        :or {iteration-max 1000 use-last true}}]
+  ([db contest-provider player-names & {:keys [iteration-max use-last database]
+                                        :or {iteration-max 1000 use-last true database :rotogrinder}}]
    (filter-23
      (prepare-data-for-regression-recursive db contest-provider player-names
-                                            iteration-max use-last)))
+                                            iteration-max use-last database)))
   ([db contest-provider ]
    (prepare-data db contest-provider nil {})))
 

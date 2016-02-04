@@ -10,11 +10,10 @@
             [incanter.stats :refer :all]
             [rz.optimizers.utils :as utils]))
 
-(def players-csv-fd "../data/fd_nba_feb_1.csv")
-(def players-csv-dk "../data/dk_nba_feb_1.csv")
+(def players-csv-fd "../data/fd_nba_feb_3.csv")
+;(def players-csv-dk "../data/dk_nba_jan_30.csv")
 
-
-(def lineup-csv-dk "../data/dk_nba_linup_feb_1.csv")
+(def lineup-csv-dk "../data/dk_nba_linup_feb_3.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
 
@@ -37,19 +36,19 @@
        pdatas))
 
 
-(defn- fix-pdata-keywords-draftking
-  [pdatas]
-  (map (fn [{:keys [Salary AvgPointsPerGame teamAbbrev GameInfo Name] :as p}]
-         (assoc p :name   (:Name p)
-                  :Name (if (nil? Name)
-                          (str ((keyword "First Name") p) " " ((keyword "Last Name") p))
-                          Name)
-                  :injury ""
-                  :Salary (read-string Salary)
-                  :FPPG (read-string AvgPointsPerGame)
-                  :IsHome (if (and (some? GameInfo) (some? teamAbbrev))
-                            (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo)))))
-       pdatas))
+;(defn- fix-pdata-keywords-draftking
+;  [pdatas]
+;  (map (fn [{:keys [Salary AvgPointsPerGame teamAbbrev GameInfo Name] :as p}]
+;         (assoc p :name   (:Name p)
+;                  :Name (if (nil? Name)
+;                          (str ((keyword "First Name") p) " " ((keyword "Last Name") p))
+;                          Name)
+;                  :injury ""
+;                  :Salary (read-string Salary)
+;                  :FPPG (read-string AvgPointsPerGame)
+;                  :IsHome (if (and (some? GameInfo) (some? teamAbbrev))
+;                            (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo)))))
+;       pdatas))
 
 (defn- fix-pdata-keywords-draftking2
   [pdatas]
@@ -90,9 +89,9 @@
   []
   (fix-pdata-keywords-fanduel (load-csv-data players-csv-fd)))
 
-(defn init-players-data-draftking
-  []
-  (fix-pdata-keywords-draftking (load-csv-data players-csv-dk)))
+;(defn init-players-data-draftking
+;  []
+;  (fix-pdata-keywords-draftking (load-csv-data players-csv-dk)))
 
 (defn init-players-data-draftking2
   []

@@ -21,18 +21,27 @@
                     last-event-mins last-event-pts
                     avg-last-games current-home
                     isPG isSG isSF isPF isC
+                    last-away-event-mins last-away-event-pts
+                    avg-last-home-games
+                    all-events all-scores
                     ] :as d}]
          [
+          ;espn
           avg-last-games
-          last-home-event-mins
+          last-event-mins
+          avg-last-home-games
           avg-last-away-games
-          event-cnt
-          avg-salary
-          last-salary
-          ;cur-salary
-          (utils/bool->int current-home)
+          (nth (reverse all-scores) 1)
 
-          ;last-event-pts
+          ;rotogrinder
+          ;avg-last-games
+          ;last-home-event-mins
+          ;avg-last-away-games
+          ;event-cnt
+          ;avg-salary
+          ;last-salary
+          ;(utils/bool->int current-home)
+
           ;last-home-event-pts
 
           (utils/nil->zero pts-current)])
@@ -40,8 +49,10 @@
 
 (defn create-model
   ([db contest-provider player-names]
-   (let [points (create-array-for-regression (model/prepare-data db contest-provider player-names))
-        ;points (take 10 points)
+   (let [points (create-array-for-regression
+                  (model/prepare-data db contest-provider player-names
+                                      :database c/*active-database*))
+         ;points (take 10 points)
         {:keys [coefs f-prob t-probs mse r-square]}
         (linear-model (map last points) (map #(take (dec (count (first points))) %) points))]
     (println (str "f-prob: " f-prob ", mse: " mse ", R^2: " r-square))
@@ -54,22 +65,35 @@
   ([db contest-provider]
    (create-model db contest-provider nil)))
 
-
 (defn linear-proj
-  [{:keys [rotogrinder-events] :as player} pinfo coefs ftps-keyword]
+  [{:keys [Name rotogrinder-events] :as player} pinfo coefs ftps-keyword]
   (let [sorted-events (sort-by :game-epoch rotogrinder-events)
         {:keys [last-home-event-mins last-home-event-pts avg-last-away-games event-cnt
-                last-salary cur-salary avg-salary
+                last-salary cur-salary avg-salary last-event-pts
+                last-event-mins avg-last-home-games all-scores
                 avg-last-games current-home] :as d}
-        (model/predict-data-from-events pinfo player sorted-events ftps-keyword)]
+        (model/predict-data-from-events pinfo player sorted-events ftps-keyword
+                                        :database c/*active-database*)]
     (+ (nth coefs 0)
        (* (nth coefs 1) avg-last-games)
-       (* (nth coefs 2) last-home-event-mins)
-       (* (nth coefs 3) avg-last-away-games)
-       (* (nth coefs 4) event-cnt)
-       (* (nth coefs 5) avg-salary)
-       (* (nth coefs 6) last-salary)
-       (* (nth coefs 7) (utils/bool->int current-home))
+       (* (nth coefs 2) last-event-mins)
+       (* (nth coefs 3) avg-last-home-games)
+       (* (nth coefs 4) avg-last-away-games)
+       (* (nth coefs 5) (nth (reverse all-scores) 1))
+
+
+
+
+
+
+
+       ;(* (nth coefs 1) avg-last-games)
+       ;(* (nth coefs 2) last-home-event-mins)
+       ;(* (nth coefs 3) avg-last-away-games)
+       ;(* (nth coefs 4) event-cnt)
+       ;(* (nth coefs 5) avg-salary)
+       ;(* (nth coefs 6) last-salary)
+       ;(* (nth coefs 7) (utils/bool->int current-home))
 
        ;(* (nth coefs 1) avg-last-games)
        ;(* (nth coefs 2) last-home-event-mins)
