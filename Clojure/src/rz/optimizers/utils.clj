@@ -41,28 +41,28 @@
          (let [db-player (mc/find-one-as-map (get-db) c/*collection* {:Name Name})
                events (sort-by :game-epoch (:rotogrinder-events db-player))
                last-event (last events)
-               by-last (first (take-last 2 events))
                scores (map (comp nil->zero :draftking-fpts) events)
                scores (if (empty? scores) [0] scores)
                ]
-           {:name Name
-            :Pos Position
-            :Sal Salary
-            :FPPG FPPG
+           {:name    Name
+            :Pos     Position
+            :Sal     Salary
+            :FPPG    (format "%2.2f" (array->mean (map :draftking-fpts (:events (:espn-data db-player)))))
             :LinProj (if (nil? linear-projection) 0 (format "%2.2f" linear-projection))
             :SVMProj (if (nil? svm-projection) 0 svm-projection)
-            :Roto (if (nil? roto-wire-projection) "0" roto-wire-projection)
-            :Last (:draftking-fpts last-event)
-            :home? (if IsHome "HOME" "")
+            :Roto    (if (nil? roto-wire-projection) "0" roto-wire-projection)
+            :Last    (:draftking-fpts last-event)
+            :home?   (if IsHome "HOME" "")
             ;:Avg (mean scores)
-            :StdDev (format "%2.2f" (sd scores))
-            :Min (apply min scores)
-            :Max  (apply max scores)
+            :StdDev  (format "%2.2f" (sd scores))
+            :MinSc     (apply min scores)
+            :MaxSc     (apply max scores)
+            :minutes     (:mins (last events))
             ;(str "G " (:game-date last-event))
 
             ;      (str (:draftking-fpts last-event) " " (if (:home-game last-event) "H" "A"))
             ;:Home (if (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo)) "YES " "")
-            :injury injury
+            :injury  injury
             }))
        (sort-by :Position team)))
 
@@ -94,7 +94,7 @@
   [team]
   (let [stated-team (calc-team-stats team)]
     (pp/print-table
-      [:home? :Pos :name :Min :FPPG :Max :StdDev :Last :Roto :LinProj :SVMProj :injury :Sal]
+      [:home? :Pos :name :FPPG :minutes :StdDev :Last :Roto :LinProj :SVMProj :injury :Sal]
       (concat stated-team
               [(calc-totals stated-team)]))))
 

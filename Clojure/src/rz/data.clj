@@ -181,53 +181,6 @@
    :C  (role-cnt body "C")
    })
 
-
-(defn get-projection-for-player
-  [player]
-  (let [{:keys [teamAbbrev GameInfo rotogrinder-events]} player
-        is-home-game (some? (re-find (re-pattern (str "@" teamAbbrev)) GameInfo))
-        pts-same-home (utils/nil->zero
-                        (:draftking-fpts (last (sort-by :game-epoch
-                                                        (filter #(= is-home-game (:home-game %)) rotogrinder-events)))))
-        avg-games-pts (utils/array->mean
-                        (take c/*average-games-count*
-                              (map (comp utils/nil->zero :draftking-fpts)
-                                   (sort-by :game-epoch rotogrinder-events))))
-        ;avg-games-pts-same (utils/array->mean
-        ;                     (take c/*average-games-count*
-        ;                           (map (comp utils/nil->zero :draftking-fpts)
-        ;                                (sort-by :game-epoch
-        ;                                         (filter #(= is-home-game (:home-game %))
-        ;                                                 rotogrinder-events)))))
-        last-mins (utils/nil->zero2 (:mins (last (sort-by :game-epoch rotogrinder-events))))]
-    ;proj = -0.0845 + 0.1623*(nil->zero pts-same-home) + 0.5988*avg-games-pts + 0.2201 * last-mins
-    (+ -0.0845
-       (* 0.1623 pts-same-home)
-       (* 0.5988 avg-games-pts)
-       (* 0.2201 last-mins))
-    ;(assoc pinfo :my-projection (+ -4.9414
-    ;                                (* 1.2113 avg-games-pts)
-    ;                                (* -0.5860 avg-games-pts-same)
-    ;                                (* -4.3727 (utils/bool->int is-home-game))))
-
-    ; proj = -4.9414 + 1.2113*avg-games-pts + -0.5860*avg-games-pts-same +  -4.3727 * (bool->int home-23)
-    ))
-
-(defn add-linear-projection
-  [db players-data]
-  (doall
-    (map (fn [{:keys [Name] :as pinfo}]
-           (assoc pinfo :my-projection
-                        (get-projection-for-player
-                          (mc/find-one-as-map db c/*collection* {:Name Name}))))
-         players-data)))
-
-(defn get-player-by-name
-  [db name]
-  (let [player (mc/find-one-as-map db c/*collection* {:Name name})]
-    (assoc player :my-projection
-                  (get-projection-for-player player))))
-
 ;(defn filter-high-sd
 ;  [players-data db]
 ;  (filter (fn [{:keys [Name]}]

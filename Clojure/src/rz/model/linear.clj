@@ -66,13 +66,13 @@
    (create-model db contest-provider nil)))
 
 (defn linear-proj
-  [{:keys [Name rotogrinder-events] :as player} pinfo coefs ftps-keyword]
-  (let [sorted-events (sort-by :game-epoch rotogrinder-events)
+  [player pinfo coefs ftps-keyword]
+  (let [
         {:keys [last-home-event-mins last-home-event-pts avg-last-away-games event-cnt
                 last-salary cur-salary avg-salary last-event-pts
                 last-event-mins avg-last-home-games all-scores
                 avg-last-games current-home] :as d}
-        (model/predict-data-from-events pinfo player sorted-events ftps-keyword
+        (model/predict-data-from-events pinfo player ftps-keyword
                                         :database c/*active-database*)]
     (+ (nth coefs 0)
        (* (nth coefs 1) avg-last-games)
@@ -80,11 +80,6 @@
        (* (nth coefs 3) avg-last-home-games)
        (* (nth coefs 4) avg-last-away-games)
        (* (nth coefs 5) (nth (reverse all-scores) 1))
-
-
-
-
-
 
 
        ;(* (nth coefs 1) avg-last-games)

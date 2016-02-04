@@ -132,10 +132,10 @@
 
 
 (defn- data-from-events
-  [p c e cp database]
+  [p current-event events cp database]
   (cond
-    (= database :rotogrinder) (data-from-events-rotogrinder p c e cp)
-    (= database :espn) (data-from-events-espn p c e cp)
+    (= database :rotogrinder) (data-from-events-rotogrinder p current-event events cp)
+    (= database :espn) (data-from-events-espn p current-event events cp)
     true (assert false (str "Unknown database " database))))
 
 (defn- train-data-from-events
@@ -144,22 +144,6 @@
         events (butlast sorted-events)]
     (data-from-events db-player event-current events contest-provider database)))
 
-(defn predict-data-from-events
-  [{:keys [Name Salary IsHome]} db-player sorted-events contest-provider
-   & {:keys [database] :or {database :rotogrinder}}]
-  (data-from-events db-player
-                    {:home-game IsHome
-                     :Salary Salary
-                     (get-point-function contest-provider) "-1"}
-                    sorted-events
-                    contest-provider
-                    database))
-
-(defn load-players
-  [db player-names]
-  (if (nil? player-names)
-    (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} } })
-    (mc/find-maps db c/*collection* {:Name {$in player-names}})))
 
 (defn get-events-from-player
   [{:keys [rotogrinder-events espn-data] :as db-player} database]
@@ -167,6 +151,25 @@
     (= database :rotogrinder) rotogrinder-events
     (= database :espn) (:events espn-data)
     true (assert false (str "Unknown database " database))))
+
+
+(defn predict-data-from-events
+  [{:keys [Salary IsHome]} db-player contest-provider
+   & {:keys [database] :or {database :rotogrinder}}]
+  (let [sorted-events (sort-by :game-epoch (get-events-from-player db-player database))]
+    (data-from-events db-player
+                    {:home-game IsHome
+                     :Salary Salary
+                     (get-point-function contest-provider) "-1"}
+                    sorted-events
+                    contest-provider
+                    database)))
+
+(defn load-players
+  [db player-names]
+  (if (nil? player-names)
+    (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} } })
+    (mc/find-maps db c/*collection* {:Name {$in player-names}})))
 
 (defn- prepare-data-for-regression-recursive
   [db contest-provider player-names iteration-max use-last database]

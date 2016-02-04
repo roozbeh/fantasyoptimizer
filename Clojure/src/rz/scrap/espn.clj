@@ -44,7 +44,7 @@
 
 (defn add-year
   [date-str]
-  (let [year (if (some? (re-find #" 1[0-10]/" date-str))
+  (let [year (if (some? (re-find #" 1[0-9]/" date-str))
                "2015"
                "2016")]
     (str date-str "/" year)))
@@ -96,29 +96,45 @@
                         :fanduel-fpts (calc-fd-score e)
                         ))
                     events))))
+
 (defn fail-safe-game-log
   [GameLogUrl PlayerURL]
   (try
-    (html/select (utils/fetch-url GameLogUrl)
-                 [:body :.tablehead #{:.oddrow :.evenrow}])
+    (utils/fetch-url GameLogUrl)
     (catch Exception e
       (do
         (println "Could not get data from game log, trying player page")
-        (html/select (utils/fetch-url PlayerURL)
-                     [:body :.tablehead #{:.oddrow :.evenrow}])))))
+        (try
+          (utils/fetch-url PlayerURL)
+          (catch Exception e
+            (println "Original URL failed as well")
+            []))))))
+
+(defn filter-2016
+  [ret]
+
+  (if (and (not-empty ret)
+           (some? (re-find #"2015-2016"
+                          (-> (html/select ret [:body :.tablehead :.stathead html/first-child ]) first :content first))))
+    (html/select ret [:body :.tablehead #{:.oddrow :.evenrow}])
+    []))
 
 (defn ingest-player
   [{:keys [GameLogUrl PlayerURL] :as espn-player}]
+  (println GameLogUrl)
   {
    :ESPN-data   espn-player
    :ingest-date (.getTime (new Date))
-   :events      (map (fn [l]
+   :events
+                ;(filter
+                ;  #(not (= (:DATE %) "Wed 2/3"))
+                  (map (fn [l]
                        (let [DATE (-> l :content first :content first)
                              [three-PM three-PA] (string/split (-> l :content (nth 6) :content first) #"-")
                              [FTM FTA] (string/split (-> l :content (nth 8) :content first) #"-")]
                          {
                           :DATE                DATE
-                          :game-date           (.parse (java.text.SimpleDateFormat. "EEE MM/dd/yyyy") (add-year DATE))
+                          :game-date           (add-year DATE)
                           :game-epoch          (.getTime (.parse (SimpleDateFormat. "EEE MM/dd/yyyy") (add-year DATE)))
                           :home-game           (= "vs" (-> (html/select l [:.game-schedule :.game-location]) first :content first))
                           :opp-team            (or (-> (html/select l [:.team-name :a]) first :content first)
@@ -142,7 +158,9 @@
                           :turnover            (-> l :content (nth 15) :content first utils/nil->zero)
                           :points              (-> l :content (nth 16) :content first utils/nil->zero)}))
                      (filter #(= 17 (count (:content %)))
-                             (fail-safe-game-log GameLogUrl PlayerURL)))})
+                             (filter-2016 (fail-safe-game-log GameLogUrl PlayerURL))))
+                  ;)
+   })
 
 (def espn-name-mapping
   {"Lou Amundson" "Louis Amundson"
@@ -153,15 +171,16 @@
    "JaKarr Sampson" "Jakarr Sampson"
    "JJ Hickson" "J.J. Hickson"
    "Dante Exum" "Danté Exum"
-   "Joe Young" "Joseph Young"
-   "Bryce Dejean-Jones" "Bryce Jones"
-   "Patty Mills" "Patrick Mills"
-   "R.J. Hunter" "RJ Hunter"
-   "Ish Smith" "Ishmael Smith"
-   "J.J. Barea" "Jose Juan Barea"
-   "Bradley Beal" "Brad Beal"
-   "Kelly Oubre Jr." "Kelly Oubre"
-   "Devyn Marble" "Roy Devyn Marble"})
+   ;"Joe Young" "Joseph Young"
+   ;"Bryce Dejean-Jones" "Bryce Jones"
+   ;"Patty Mills" "Patrick Mills"
+   ;"R.J. Hunter" "RJ Hunter"
+   ;"Ish Smith" "Ishmael Smith"
+   ;"J.J. Barea" "Jose Juan Barea"
+   ;"Bradley Beal" "Brad Beal"
+   ;"Kelly Oubre Jr." "Kelly Oubre"
+   ;"Devyn Marble" "Roy Devyn Marble"
+   })
 
 
 (defn map-espn-names
@@ -174,6 +193,15 @@
         players (get-players)]
     (mc/insert db c/*collection* {:type :espn-data
                                   :players players})))
+
+(defn ingest-one-player-code
+  [db Name]
+  (scrap/add-data-to-player db
+                            Name
+                            :espn-data (add-score
+                                         (ingest-player (first
+                                                          (filter #(= (:Name %) Name)
+                                                                  (get-espn-players db)))))))
 
 (defn get-espn-players
   [db]
@@ -194,7 +222,9 @@
                       (let [db-player (mc/find-one-as-map db c/*collection* {:Name (map-espn-names Name)})]
                         (if (nil? db-player)
                           (println (str "ERROR: Could not load player in database: '" (map-espn-names Name) "'"))
-                          (if (or force-update (nil? (:espn-data db-player)))
+                          (if (or force-update
+                                  (nil? (:espn-data db-player))
+                                  (empty? (:events (:espn-data db-player))))
                             (do
                               (println (str "Loading data for " Name))
                               (scrap/add-data-to-player db (map-espn-names Name)

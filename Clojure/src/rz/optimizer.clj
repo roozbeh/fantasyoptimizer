@@ -21,8 +21,9 @@
 
 (defn- force-db-update
   []
-  (rotoscrap/ingest-data (data/init-players-data-fanduel)
+  (espn/ingest-data (data/init-players-data-fanduel)
                          :force-update true))
+
 
 (defn ingest-data
   [players-data]
@@ -68,7 +69,9 @@
         players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
     (data/save-solutions
       (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)
-      c/*draftking*)))
+      c/*draftking*)
+    ;players-proj
+    ))
 
 (defn- optimize-draftking-lineups-svm
   []
@@ -101,6 +104,24 @@
         players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)
         players-proj (data/add-rotowires-projection players-proj c/*draftking*)]
     (data/save-projections db players-proj)))
+
+
+
+(defn get-team
+  []
+  (let [db (utils/get-db)
+        get-player-info (fn [name] (mc/find-one-as-map db c/*collection* {:Name name}))]
+    (map get-player-info
+         ["George Hill"
+          "Victor Oladipo"
+          "Aaron Gordon"
+          "Kevin Love"
+          "Lavoy Allen"
+          "Jeremy Lin"
+          "Michael Kidd-Gilchrist"
+          "Russell Westbrook"]
+         )))
+
 
 (defn -main
   [& args]
