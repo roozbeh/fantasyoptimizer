@@ -232,12 +232,11 @@
   [db players-data contest-provider]
   (let [fpts-func (model/get-point-function contest-provider)
         feature-vector (create-array-for-regression
-                         (map (fn [{:keys [Name]}]
+                         (map (fn [{:keys [Name] :as pinfo}]
                                (let [{:keys [rotogrinder-events] :as db-player}
                                      (mc/find-one-as-map db c/*collection* {:Name Name})]
-                                 (model/predict-data-from-events Name
+                                 (model/predict-data-from-events pinfo
                                                                  db-player
-                                                                 (sort-by :game-epoch rotogrinder-events)
                                                                  fpts-func
                                                                  :database c/*active-database*)))
                             players-data)

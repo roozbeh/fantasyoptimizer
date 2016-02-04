@@ -97,23 +97,31 @@
                         ))
                     events))))
 
+(defn fetch-with-retry
+  [url]
+  (loop [retry-cnt 0
+         res nil]
+    (if (or res (> retry-cnt 2))
+      res
+      (recur (inc retry-cnt)
+             (try
+               (utils/fetch-url url)
+               (catch Exception e (do
+                              (println (str "Exception: " e ", retry: " retry-cnt ", url: " url))
+                              nil)))))))
+
 (defn fail-safe-game-log
   [GameLogUrl PlayerURL]
-  (try
-    (utils/fetch-url GameLogUrl)
-    (catch Exception e
-      (do
-        (println "Could not get data from game log, trying player page")
-        (try
-          (utils/fetch-url PlayerURL)
-          (catch Exception e
-            (println "Original URL failed as well")
-            []))))))
+  (if-let [ret (fetch-with-retry GameLogUrl)]
+    ret
+    (if-let [ret (fetch-with-retry PlayerURL)]
+      ret
+      [])))
 
 (defn filter-2016
   [ret]
-
   (if (and (not-empty ret)
+           (not-empty (html/select ret [:body :.tablehead :.stathead html/first-child ]))
            (some? (re-find #"2015-2016"
                           (-> (html/select ret [:body :.tablehead :.stathead html/first-child ]) first :content first))))
     (html/select ret [:body :.tablehead #{:.oddrow :.evenrow}])
@@ -121,13 +129,12 @@
 
 (defn ingest-player
   [{:keys [GameLogUrl PlayerURL] :as espn-player}]
-  (println GameLogUrl)
   {
    :ESPN-data   espn-player
    :ingest-date (.getTime (new Date))
    :events
-                ;(filter
-                ;  #(not (= (:DATE %) "Wed 2/3"))
+                (filter
+                  #(not (= (:DATE %) "Wed 2/3"))
                   (map (fn [l]
                        (let [DATE (-> l :content first :content first)
                              [three-PM three-PA] (string/split (-> l :content (nth 6) :content first) #"-")
@@ -159,7 +166,7 @@
                           :points              (-> l :content (nth 16) :content first utils/nil->zero)}))
                      (filter #(= 17 (count (:content %)))
                              (filter-2016 (fail-safe-game-log GameLogUrl PlayerURL))))
-                  ;)
+                  )
    })
 
 (def espn-name-mapping
@@ -194,6 +201,13 @@
     (mc/insert db c/*collection* {:type :espn-data
                                   :players players})))
 
+(defn get-espn-players
+  [db]
+  (let [data (mc/find-one-as-map db c/*collection* {:type :espn-data})]
+    (assert data)
+    (assert (:players data))
+    (:players data)))
+
 (defn ingest-one-player-code
   [db Name]
   (scrap/add-data-to-player db
@@ -202,13 +216,6 @@
                                          (ingest-player (first
                                                           (filter #(= (:Name %) Name)
                                                                   (get-espn-players db)))))))
-
-(defn get-espn-players
-  [db]
-  (let [data (mc/find-one-as-map db c/*collection* {:type :espn-data})]
-    (assert data)
-    (assert (:players data))
-    (:players data)))
 
 (defn ingest-data
   [players-data & {:keys [force-update] :or {force-update false}}]

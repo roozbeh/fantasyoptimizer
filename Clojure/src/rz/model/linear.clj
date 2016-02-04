@@ -27,11 +27,11 @@
                     ] :as d}]
          [
           ;espn
-          avg-last-games
           last-event-mins
-          avg-last-home-games
-          avg-last-away-games
-          (nth (reverse all-scores) 1)
+          avg-last-games
+          ;avg-last-home-games
+          ;avg-last-away-games
+          ;(nth (reverse all-scores) 1)
 
           ;rotogrinder
           ;avg-last-games
@@ -75,11 +75,11 @@
         (model/predict-data-from-events pinfo player ftps-keyword
                                         :database c/*active-database*)]
     (+ (nth coefs 0)
-       (* (nth coefs 1) avg-last-games)
-       (* (nth coefs 2) last-event-mins)
-       (* (nth coefs 3) avg-last-home-games)
-       (* (nth coefs 4) avg-last-away-games)
-       (* (nth coefs 5) (nth (reverse all-scores) 1))
+       (* (nth coefs 1) last-event-mins)
+       (* (nth coefs 2) avg-last-games)
+       ;(* (nth coefs 3) avg-last-home-games)
+       ;(* (nth coefs 4) avg-last-away-games)
+       ;(* (nth coefs 5) (nth (reverse all-scores) 1))
 
 
        ;(* (nth coefs 1) avg-last-games)
@@ -117,18 +117,6 @@
                           coefs
                           (model/get-point-function contest-provider))))
          players-data)))
-
-(defn draw-data
-  [db contest-provider coefs]
-  (let [ftps-keyword (if (= contest-provider c/*fanduel*) :fanduel-fpts :draftking-fpts)
-        points (create-array-for-regression (model/prepare-data db contest-provider))
-        real-vals (map last points)
-        projection (map #(+ (nth coefs 0)
-                    (* (nth coefs 1) (nth % 0))
-                    (* (nth coefs 2) (nth % 1))
-                    (* (nth coefs 3) (nth % 2))
-                    (* (nth coefs 4) (nth % 3))) points)]
-    (view (charts/scatter-plot real-vals projection :legend true))))
 
 
 
@@ -189,3 +177,16 @@
       (charts/scatter-plot real-vals roto :legend true)
       (charts/add-function (fn [n] n) -5 80)
       view "linear")))
+
+(defn draw-data
+  [db contest-provider coefs]
+  (let [ftps-keyword (if (= contest-provider c/*fanduel*) :fanduel-fpts :draftking-fpts)
+        points (create-array-for-regression (model/prepare-data db contest-provider))
+        real-vals (map last points)
+        projection (map #(+ (nth coefs 0)
+                            (* (nth coefs 1) (nth % 0))
+                            (* (nth coefs 2) (nth % 1))
+                            (* (nth coefs 3) (nth % 2))
+                            (* (nth coefs 4) (nth % 3))) points)]
+    (view (charts/scatter-plot real-vals projection :legend true))))
+

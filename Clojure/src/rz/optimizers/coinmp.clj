@@ -217,26 +217,3 @@
     (lpsolve-solve-multiple constants/*team-salary-fanduel* player-with-proj 5 c/*fanduel* proj-keyword)
     (data/add-rotowires-projection player-with-proj c/*fanduel*)))
 
-
-(defn get-team
-  []
-  (let [db (utils/get-db)]
-    (map (partial data/get-player-by-name db)
-         ["Mike Conley"
-          "Avery Bradley"
-          "Trevor Ariza"
-          "Marvin Williams"
-          "Nikola Jokic"
-          "Jrue Holiday"
-          "DeMarcus Cousins"
-          "Zach Randolph"]
-         ;["Karl-Anthony Towns"
-         ; "Marvin Williams"
-         ; "Stephen Curry"
-         ; "Marcus Smart"
-         ; "Marcus Morris"
-         ; "Marcus Thornton"
-         ; "Dwyane Wade"
-         ; "Victor Oladipo"]
-         )))
-
