@@ -18,7 +18,8 @@
             [rz.model.logistic :as logistic]
             [rz.optimizers.utils :as utils]
             [incanter.stats :refer :all]
-            [monger.collection :as mc])
+            [monger.collection :as mc]
+            [monger.operators :refer :all])
   (:gen-class))
 
 (defn- force-espn-update
@@ -64,13 +65,15 @@
         players-proj (linear/add-linear-projection db players-proj coefs c/*fanduel*)]
     (coinmp/lpsolve-solve-fanduel players-proj  :svm-projection)))
 
+
 (defn- optimize-draftking-lineups
   []
   (let [db (utils/get-db)
-        players-data (data/init-players-data-draftking2)
-        players-data (data/remove-injured players-data)
+        players-data (data/filter-suckers db
+                                          (data/remove-injured
+                                            (data/init-players-data-draftking2)))
         player-names (map :Name players-data)
-        _  (ingest-data players-data)
+        ;_  (ingest-data players-data)
         coefs (linear/create-model db c/*draftking* player-names)
         players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
     (data/save-solutions
@@ -93,22 +96,24 @@
         players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)]
     (coinmp/lpsolve-solve-draftkings players-proj  :svm-projection)))
 
-
 (defn- optimize-draftking-lineups-avg
   []
   (let [db (utils/get-db)
-        players-data (data/init-players-data-draftking2)
-        players-data (data/remove-injured players-data)
+        players-data (data/filter-suckers db
+                                          (data/remove-injured
+                                            (data/init-players-data-draftking2)))
         player-names (map :Name players-data)
         _  (ingest-data players-data)
         coefs (linear/create-model db c/*draftking* player-names)
         players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)
         players-proj (data/add-rotowires-projection players-proj c/*draftking*)
-        ;players-proj (rotoscrap/add-rotogrinders-projection players-proj c/*draftking*)
-        players-proj (map (fn [{:keys [Name linear-projection roto-wire-projection] :as p}]
+        players-proj (rotoscrap/add-rotogrinders-projection db players-proj c/*draftking*)
+        players-proj (map (fn [{:keys [Name linear-projection roto-wire-projection rotogrinders-projection] :as p}]
                             (assoc p :avg-proj (mean [linear-projection
-                                                      (utils/nil->zero roto-wire-projection)])))
+                                                      (utils/nil->zero roto-wire-projection)
+                                                      (utils/nil->zero rotogrinders-projection)])))
                           players-proj)]
+    (data/save-projections db players-proj)
     (data/save-solutions
       (coinmp/lpsolve-solve-draftkings players-proj  :avg-proj)
       c/*draftking*)))
@@ -122,29 +127,33 @@
         players-data (data/remove-injured players-data)
         _   (rotoscrap/ingest-data players-data)
         player-names (map :Name players-data)
-        o (svm/create-model db c/*draftking* player-names)
-        _ (println o)
         coefs (linear/create-model db c/*draftking* player-names)
-        players-proj (svm/predict-players db players-data c/*draftking*)
-        players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)
+        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)
+        players-proj (rotoscrap/add-rotogrinders-projection db players-proj c/*draftking*)
         players-proj (data/add-rotowires-projection players-proj c/*draftking*)]
-    (data/save-projections db players-proj "02032015")))
+    (data/save-projections db players-proj)))
 
 
 (defn get-team
   []
   (let [db (utils/get-db)
-        get-player-info (fn [name] (mc/find-one-as-map db c/*collection* {:Name name}))]
-    (map get-player-info
-         ["George Hill"
-          "Victor Oladipo"
-          "Aaron Gordon"
-          "Kevin Love"
-          "Lavoy Allen"
-          "Jeremy Lin"
-          "Michael Kidd-Gilchrist"
-          "Russell Westbrook"]
-         )))
+        {:keys [actual]} (mc/find-one-as-map db c/*collection*{:type :actual :date "2/5/16"})
+        ;get-player-info (fn [name] (mc/find-one-as-map db c/*collection* {:Name name}))
+        get-player-info (fn [name] (first (filter #(= (first %) name) actual)))
+        team (map get-player-info
+                  [
+                   "Greg Monroe"
+                   "Nikola Jokic"
+                   "LaMarcus Aldridge"
+                   "Emmanuel Mudiay"
+                   "Raul Neto"
+                   "Giannis Antetokounmpo"
+                   "Gordon Hayward"
+                   "Khris Middleton"
+                   ]
+                  )]
+    (println (str "sum is " (apply + (map (comp utils/nil->zero second) team))))
+    team))
 
 
 (defn -main
@@ -157,28 +166,54 @@
   (let [db (utils/get-db)
         players-data (data/init-players-data-draftking2)
         pinfo (first (filter #(= Name (:Name %)) players-data))
-        db-player (mc/find-one-as-map db c/*collection* {:Name Name})
-        ]
+        db-player (mc/find-one-as-map db c/*collection* {:Name Name})]
     (model/predict-data-from-events pinfo db-player c/*draftking* :database :rotogrinder)))
+
+(defn asses-linear
+  []
+  (let [db (utils/get-db)
+        sqr (fn [x] (* x x))
+        players-data (data/filter-suckers db
+                       (data/remove-injured
+                          (data/init-players-data-draftking2)))
+        player-names (map :Name players-data)
+        coefs (linear/create-model db c/*draftking* player-names)
+        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)
+        {:keys [actual]} (mc/find-one-as-map db c/*collection*{:type :actual :date "2/5/16"})
+        liear-proj (map (fn [{:keys [Name linear-projection]}]
+                          (let [[_ projection] (first (filter #(= Name (first %)) actual))]
+                            [linear-projection Name (utils/nil->zero projection)]))
+                        players-proj)]
+    (println (str "database: " c/*active-database*))
+    (println (str "max iteration: " c/*max-iterations*))
+    (println "linear error: " (mean (map (comp sqr -)
+                                             (map #(nth % 0) liear-proj)
+                                             (map last liear-proj))))
+    ;liear-proj
+    ))
+
 
 ; force-espn-update
 ; force-rotogrinders-update
 ; save-projections-dk
 (comment
   (def db (utils/get-db))
-  (def players (data/init-players-data-draftking2))
   (defn sqr [x] (* x x))
-
+  (def players (data/init-players-data-draftking2))
   (def players-data (data/remove-injured (data/init-players-data-draftking2)))
   (def player-names (map :Name players-data))
+
+  (data/save-actual db player-names "2/5/16")
+
+
   (def espn-proj (let [coefs (linear/create-model db c/*draftking* player-names)
-                       players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
+                       players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)
+                       {:keys [actual]} (mc/find-one-as-map db c/*collection*{:type :actual :date "2/4/16"})]
                    (map (fn [{:keys [Name linear-projection]}]
-                          (let [{:keys [projections]}
-                                (mc/find-one-as-map (utils/get-db) c/*collection* {:Name Name})]
+                          (let [[_ projection] (first (filter #(= Name (first %)) actual))]
                             [linear-projection
                              Name
-                             (:last-actual projections)]))
+                             projection]))
                         players-proj)))
 
 

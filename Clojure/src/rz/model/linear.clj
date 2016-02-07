@@ -30,18 +30,19 @@
          ;(println (str Name " -> " C " - " G " - " F))
          (if (= :espn c/*active-database*)
            [;espn
-            last-event-mins
-            avg-last-home-games
-            avg-last-away-games
-            (nth (reverse all-scores) 1)
-            experience
-            ;last-event-points
-            ;last-event-pts
-            ;avg-last-games
-            ;season-salary
-            ;C
-            ;is-top
-            ;(utils/bool->int current-home)
+            last-event-mins                                 ;OK 2.062967785287917E-4
+            avg-last-home-games                             ;OK 2.6898705485223218E-11
+            avg-last-away-games                             ;OK 7.215051357323254E-5
+            season-salary                                   ;OK 4.266601842450868E-5
+            ;C                                               ;OK 0.007628189945130481
+            (nth (reverse all-scores) 1)                    ;~ 0.08884594435811466
+            ;last-event-points                               ;BAD 0.13423766210192656
+            (utils/bool->int current-home)                  ;BAD 0.16421015361380098)
+            ;avg-last-games                                  ;BAD 0.9926613836842875
+            is-top                                          ;BAD 0.3040758717420722
+            last-event-pts                                  ;BAD 0.7107637646273752
+            experience                                      ;BAD 0.3321079046177915
+
 
             (utils/nil->zero pts-current)]
            [;rotogrinder
@@ -60,7 +61,7 @@
   ([db contest-provider player-names]
    (let [points (create-array-for-regression
                   (model/prepare-data db contest-provider player-names
-                                      :iteration-max 5
+                                      :iteration-max c/*max-iterations*
                                       :database c/*active-database*))
          ;points (take 10 points)
         {:keys [coefs f-prob t-probs mse r-square]}
@@ -77,50 +78,71 @@
 
 (defn linear-proj
   [player pinfo coefs ftps-keyword]
+
   (let [
         {:keys [last-home-event-mins last-home-event-pts avg-last-away-games event-cnt
                 last-salary cur-salary avg-salary last-event-pts
                 last-event-mins avg-last-home-games all-scores
                 avg-last-games current-home season-salary
-                experience C G F is-top] :as d}
+                experience C G F is-top last-event-points] :as d}
         (model/predict-data-from-events pinfo player ftps-keyword
-                                        :database c/*active-database*)]
-    (if (= :espn c/*active-database*)
-      (+ (nth coefs 0)
-         (* (nth coefs 1) last-event-mins)
-         (* (nth coefs 2) avg-last-home-games)
-         (* (nth coefs 3) avg-last-away-games)
-         (* (nth coefs 4) (nth (reverse all-scores) 1))
-         (* (nth coefs 5) experience)
-         ;(* (nth coefs 6) season-salary)
-         ;(* (nth coefs 8) C)
-         ;(* (nth coefs 9) is-top)
-
-         )
-      (+ (nth coefs 0)
-         (* (nth coefs 1) avg-last-games)
-         (* (nth coefs 2) last-home-event-mins)
-         (* (nth coefs 3) avg-last-away-games)
-         (* (nth coefs 4) event-cnt)
-         (* (nth coefs 5) avg-salary)
-         (* (nth coefs 6) last-salary)
-         (* (nth coefs 7) (utils/bool->int current-home)))
-
-       ;(* (nth coefs 1) avg-last-games)
-       ;(* (nth coefs 2) last-home-event-mins)
-       ;(* (nth coefs 3) event-cnt)
-       ;(* (nth coefs 4) cur-salary)
-       ;(* (nth coefs 5) avg-salary)
-
-       ;(* (nth coefs 1) last-home-event-pts)
-       ;(* (nth coefs 2) last-home-event-mins)
-       ;(* (nth coefs 3) avg-last-away-games)
-       ;(* (nth coefs 4) event-cnt)
-       ;(* (nth coefs 5) last-salary)
-       ;(* (nth coefs 6) cur-salary)
-       ;(* (nth coefs 7) avg-salary)
-
-       )))
+                                        :database c/*active-database*)
+        points (butlast
+                 (first
+                   (create-array-for-regression
+                     [(model/predict-data-from-events pinfo player ftps-keyword
+                                                      :database c/*active-database*)])))]
+    (loop [points (cons 1 points)
+           coefs coefs
+           sum 0]
+      (assert (= (count points) (count coefs)))
+      (if (empty? coefs)
+        sum
+        (recur (rest points) (rest coefs) (+ sum (* (first points) (first coefs))))))))
+    ;(pp/pprint points )
+    ;
+    ;(if (= :espn c/*active-database*)
+    ;  (+ (nth coefs 0)
+    ;     (* (nth coefs 1) last-event-mins)
+    ;     (* (nth coefs 2) avg-last-home-games)
+    ;     (* (nth coefs 3) avg-last-away-games)
+    ;     (* (nth coefs 4) (nth (reverse all-scores) 1))
+    ;     (* (nth coefs 5) experience)
+    ;     (* (nth coefs 6) last-event-points)
+    ;     (* (nth coefs 7) last-event-pts)
+    ;     (* (nth coefs 8) avg-last-games)
+    ;     (* (nth coefs 9) season-salary)
+    ;     (* (nth coefs 10) C)
+    ;     (* (nth coefs 11) is-top)
+    ;     (* (nth coefs 22) (utils/bool->int current-home))
+    ;
+    ;
+    ;     )
+    ;  (+ (nth coefs 0)
+    ;     (* (nth coefs 1) avg-last-games)
+    ;     (* (nth coefs 2) last-home-event-mins)
+    ;     (* (nth coefs 3) avg-last-away-games)
+    ;     (* (nth coefs 4) event-cnt)
+    ;     (* (nth coefs 5) avg-salary)
+    ;     (* (nth coefs 6) last-salary)
+    ;     (* (nth coefs 7) (utils/bool->int current-home))
+    ;     )
+    ;
+    ;   ;(* (nth coefs 1) avg-last-games)
+    ;   ;(* (nth coefs 2) last-home-event-mins)
+    ;   ;(* (nth coefs 3) event-cnt)
+    ;   ;(* (nth coefs 4) cur-salary)
+    ;   ;(* (nth coefs 5) avg-salary)
+    ;
+    ;   ;(* (nth coefs 1) last-home-event-pts)
+    ;   ;(* (nth coefs 2) last-home-event-mins)
+    ;   ;(* (nth coefs 3) avg-last-away-games)
+    ;   ;(* (nth coefs 4) event-cnt)
+    ;   ;(* (nth coefs 5) last-salary)
+    ;   ;(* (nth coefs 6) cur-salary)
+    ;   ;(* (nth coefs 7) avg-salary)
+    ;
+    ;   )))
 
 (defn add-linear-projection
   [db players-data coefs contest-provider]

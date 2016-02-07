@@ -7,16 +7,16 @@
             [rz.projection :as proj]
             [rz.optimizers.constants :as c]
             [monger.collection :as mc]
+            [monger.operators :refer :all]
             [incanter.stats :refer :all]
             [rz.optimizers.utils :as utils]))
 
-(def players-csv-fd "../data/fd_nba_feb_4.csv")
+(def players-csv-fd "../data/fd_nba_feb_6.csv")
 ;(def players-csv-dk "../data/dk_nba_jan_30.csv")
 
-(def lineup-csv-dk "../data/dk_nba_linup_feb_4.csv")
+(def lineup-csv-dk "../data/dk_nba_linup_feb_6.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
-
 
 ;(def projections-csv "projections.csv")
 ;(read-json-data "src/server/fantasy_players.csv")
@@ -190,30 +190,6 @@
 ;              (< (sd scores) 10)))
 ;          players-data))
 
-(defn save-projections
-  [db players-proj key-name]
-  (doall
-    (map
-      (fn [{:keys [Name linear-projection svm-projection roto-wire-projection]}]
-        (try
-          (let [{:keys [projections] :as db-player}
-                (mc/find-one-as-map db c/*collection* {:Name Name})]
-            (mc/update db c/*collection* {:Name Name}
-                     (assoc db-player
-                       :projections
-
-                                          {:linear-projection linear-projection
-                                           ;:last-actual (utils/nil->zero
-                                           ;               (:draftking-fpts
-                                           ;                 (first (filter #(= "2/3/16" (:game-date %))
-                                           ;                                (:rotogrinder-events db-player)))))
-                                           :svm-projection svm-projection
-                                           :roto-wire-projection roto-wire-projection})))
-          (catch Exception e
-            (println (str "ERROR in updating " Name " data, Exception: " e)))))
-      players-proj))
-  (println "projection updated!"))
-
 
 (defn choose-player-for-pos
   [pos players]
@@ -257,3 +233,46 @@
       (csv/write-csv out-file [header-array])
       (csv/write-csv out-file solutions-array))
     (println (str "Solutions written in " filename))))
+
+
+(defn save-projections
+  [db players-proj]
+  (let [date-str (.format (java.text.SimpleDateFormat. "MMddyyyy")  (java.util.Date.))]
+    (mc/remove db c/*collection* {:type :projections :date date-str})
+    (mc/insert db c/*collection*
+               {:type :projections
+                :date date-str
+                :proj players-proj})
+    (println (str "projection updated for: " date-str))))
+
+
+;"2/4/16"
+(defn save-actual
+  [db player-names date-str]
+  (mc/remove db c/*collection* {:type :actual :date date-str})
+  (mc/insert db c/*collection*
+             {:type :actual
+              :date date-str
+              :actual
+                    (map (fn [{:keys [rotogrinder-events Name]}]
+                           [Name (:draftking-fpts
+                                   (first
+                                     (filter #(= date-str (:game-date %))
+                                             rotogrinder-events)))])
+                         (mc/find-maps db c/*collection* {:Name {$in player-names}}))}))
+
+(defn filter-suckers
+  [db players-data]
+  (filter (fn [{:keys [Name]}]
+            (let [db-player (mc/find-one-as-map db c/*collection* {:Name Name})
+                  events (sort-by :game-epoch (:events (:espn-data db-player)))
+                  last-point (:points (last events))
+                  before-last-point (:points (last (butlast events)))
+                  before2-last-point (:points (last (butlast (butlast events))))]
+              (if (or (and (= 0 last-point) (<= before-last-point 4) (= 0 before2-last-point))
+                      (and (= 0 last-point) (= before-last-point 0)))
+                (do (println (str "Sucker: " Name))
+                    false)
+                true)))
+          players-data))
+

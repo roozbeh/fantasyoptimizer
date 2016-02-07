@@ -37,7 +37,7 @@
 (defn calc-team-stats
   [team]
   (map (fn [{:keys [Name IsHome Position Salary roto-wire-projection FPPG injury my-projection teamAbbrev GameInfo
-                    linear-projection svm-projection]}]
+                    linear-projection svm-projection rotogrinders-projection]}]
          (let [db-player (mc/find-one-as-map (get-db) c/*collection* {:Name Name})
                events (sort-by :game-epoch (:rotogrinder-events db-player))
                last-event (last events)
@@ -51,6 +51,7 @@
             :LinProj (if (nil? linear-projection) 0 (format "%2.2f" linear-projection))
             :SVMProj (if (nil? svm-projection) 0 svm-projection)
             :Roto    (if (nil? roto-wire-projection) "0" roto-wire-projection)
+            :Grndr   (if (nil? rotogrinders-projection) "0" rotogrinders-projection)
             :Last    (:draftking-fpts last-event)
             :home?   (if IsHome "HOME" "")
             ;:Avg (mean scores)
@@ -94,7 +95,7 @@
   [team]
   (let [stated-team (calc-team-stats team)]
     (pp/print-table
-      [:home? :Pos :name :FPPG :minutes :StdDev :Last :Roto :LinProj :SVMProj :injury :Sal]
+      [:home? :Pos :name :FPPG :minutes :StdDev :Last :Roto :Grndr :LinProj :SVMProj :injury :Sal]
       (concat stated-team
               [(calc-totals stated-team)]))))
 

@@ -134,6 +134,9 @@
         salary-node (html/select player-profile [:body :div.mod-content :ul :li :dt :strong])
         exp-node (-> (html/select game-log [:.player-metadata :li]) last :content second read-string)
         leaderboard-node (html/select game-log [:.general-info :.first])
+        leaderboard-txt (if (empty? leaderboard-node)
+                          ""
+                          (-> leaderboard-node first :content first))
         ]
     {:ESPN-data   espn-player
      :ingest-date (.getTime (new Date))
@@ -145,12 +148,12 @@
                      exp-node
                      0)
                    0)
-     :leaderboard-rank (if (empty? leaderboard-node)
-                         100
-                         (-> leaderboard-node first :content first (string/replace #"#" "") read-string))
+     :leaderboard-rank (if (.startsWith leaderboard-txt "#")
+                         (-> leaderboard-txt (string/replace #"#" "") read-string)
+                         100)
      :events
                   ;(filter
-                  ;  #(not (= (:DATE %) "Wed 2/3"))
+                  ;  #(not (= (:DATE %) "Wed 2/5"))
                     (map (fn [l]
                          (let [DATE (-> l :content first :content first)
                                [three-PM three-PA] (string/split (-> l :content (nth 6) :content first) #"-")
@@ -184,6 +187,7 @@
                                (filter-2016 game-log)))
                     ;)
      }))
+
 
 (def espn-name-mapping
   {"Lou Amundson" "Louis Amundson"

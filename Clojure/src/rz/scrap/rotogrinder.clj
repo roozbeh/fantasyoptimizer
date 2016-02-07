@@ -61,7 +61,7 @@
   (and true
        (not (= 0 dk-salary))
        (not (= 0 fd-salary))
-       ;(not (= "2/3/16" game-date))
+       ;(not (= "2/4/16" game-date))
        ))
 
 (defn ingest-player-info
@@ -133,14 +133,19 @@
 
 
 (defn add-rotogrinders-projection
-  [db players-data]
+  [db players-data contest-provider]
     (map (fn [{:keys [Name] :as p}]
-           (let [{:keys [rotogrinder-id]} (mc/find-one-as-map db c/*collection* {:Name name})
-                 ret (utils/fetch-url (str "https://rotogrinders.com/players/devin-booker-" rotogrinder-id))
-                 projection (-> (html/select ret [:li.d :.value]) last :content first read-string)]
+           (println (str "Getting info for " Name))
+           (let [{:keys [rotogrinder-id]} (mc/find-one-as-map db c/*collection* {:Name Name})
+                 url (str "https://rotogrinders.com/players/"rotogrinder-id"/projection" )
+                 _ (println url)
+                 ret (utils/fetch-url url)
+                 data (json/read-str (first (:content (first (:content (first ret))))) :key-fn keyword)]
              (assoc p
-                   :rotogrinders-projection (if (number? projection)
-                                              projection
-                                              0))))
+                   :rotogrinders-projection (get (:fpts (:stats data))
+                                                 (keyword
+                                                   (if (= c/*draftking* contest-provider)
+                                                     *rotogrind-draftking-id*
+                                                     *rotogrind-fanduel-id*) )))))
          players-data))
 

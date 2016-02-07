@@ -85,14 +85,14 @@
         last-home-event (last home-events)
         last-away-event (last away-events)
 
-        all-scores (map (comp utils/nil->zero ftps-keyword) events)
-        home-scores (map (comp utils/nil->zero ftps-keyword) home-events)
-        away-scores (map (comp utils/nil->zero ftps-keyword) away-events)
+        filter-zero (fn [es] (filter #(not (= 0 (utils/nil->zero (ftps-keyword %)))) es))
+        all-scores (map (comp utils/nil->zero ftps-keyword) (filter-zero events))
+        home-scores (map (comp utils/nil->zero ftps-keyword) (filter-zero home-events))
+        away-scores (map (comp utils/nil->zero ftps-keyword) (filter-zero away-events))
 
         avg-last-games (utils/array->mean (take-last c/*average-games-count* all-scores))
         avg-last-home-games (utils/array->mean (take-last c/*average-games-count* home-scores))
-        avg-last-away-games (utils/array->mean (take-last c/*average-games-count* away-scores))
-        ]
+        avg-last-away-games (utils/array->mean (take-last c/*average-games-count* away-scores))]
     {:Name Name
      :last-event-mins (utils/nil->zero2 (:mins event-last))
      :last-event-pts (utils/nil->zero (ftps-keyword event-last))
@@ -158,15 +158,15 @@
 (defn get-events-from-player
   [{:keys [rotogrinder-events espn-data] :as db-player} database]
   (cond
-    (= database :rotogrinder) rotogrinder-events
-    (= database :espn) (:events espn-data)
+    (= database :rotogrinder) (sort-by :game-epoch rotogrinder-events)
+    (= database :espn) (sort-by :game-epoch (:events espn-data))
     true (assert false (str "Unknown database " database))))
 
 
 (defn predict-data-from-events
   [{:keys [Salary IsHome]} db-player contest-provider
    & {:keys [database] :or {database :rotogrinder}}]
-  (let [sorted-events (sort-by :game-epoch (get-events-from-player db-player database))]
+  (let [sorted-events (get-events-from-player db-player database)]
     (data-from-events db-player
                     {:home-game IsHome
                      :Salary Salary
@@ -188,6 +188,11 @@
       (fn [{:keys [Name  teamAbbrev] :as db-player}]
         (let [
               all-sorted-events (get-events-from-player db-player database)
+
+              ; BECAREFUL BECAREFUL BECAREFUL
+              ;all-sorted-events (filter #(not (= (:game-date %) c/*filter-date*))
+              ;                          all-sorted-events)
+              ; BECAREFUL BECAREFUL BECAREFUL
               _ (if (nil? all-sorted-events)
                   (println (str "WARNING: no data for " Name)))
               sorted-events (if use-last all-sorted-events (butlast all-sorted-events))
