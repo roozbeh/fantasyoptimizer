@@ -10,7 +10,9 @@
             [incanter.core :refer :all]
             [rz.optimizers.utils :as utils]
             [clojure.java.shell :as shell]
-            [rz.model.model :as model]))
+            [rz.model.model :as model]
+            [clojure.data.csv :as csv]
+            [clojure.java.io :as io]))
 
 
 (defn create-array-for-regression
@@ -25,7 +27,7 @@
                     avg-last-home-games
                     all-events all-scores
                     season-salary last-event-points Name experience C G F
-                    is-top
+                    is-top is_win
                     ] :as d}]
          ;(println (str Name " -> " C " - " G " - " F))
          (if (= :espn c/*active-database*)
@@ -37,11 +39,12 @@
             ;C                                               ;OK 0.007628189945130481
             (nth (reverse all-scores) 1)                    ;~ 0.08884594435811466
             ;last-event-points                               ;BAD 0.13423766210192656
-            (utils/bool->int current-home)                  ;BAD 0.16421015361380098)
+            ;(utils/bool->int current-home)                  ;BAD 0.16421015361380098)
             ;avg-last-games                                  ;BAD 0.9926613836842875
             is-top                                          ;BAD 0.3040758717420722
             last-event-pts                                  ;BAD 0.7107637646273752
             experience                                      ;BAD 0.3321079046177915
+            is_win
 
 
             (utils/nil->zero pts-current)]
@@ -66,6 +69,10 @@
          ;points (take 10 points)
         {:keys [coefs f-prob t-probs mse r-square]}
         (linear-model (map last points) (map #(take (dec (count (first points))) %) points))]
+
+     (with-open [out-file (io/writer "../points.csv")]
+       (csv/write-csv out-file points))
+
     (println (str "f-prob: " f-prob ", mse: " mse ", R^2: " r-square))
     (println (str "input data size: " (count points)))
     (println "t-probs")
@@ -144,6 +151,7 @@
     ;
     ;   )))
 
+
 (defn add-linear-projection
   [db players-data coefs contest-provider]
   (doall
@@ -174,47 +182,45 @@
 ;                      db-players)))))
 ;
 ;
-;(defn prepare-projections-data
-;  [data]
-;  (map (fn [{:keys [actual linear-projection svm-projection roto-wire-projection]}]
-;         [
-;          linear-projection
-;          svm-projection
-;          roto-wire-projection
-;          actual])
-;       (filter #(some? (:roto-wire-projection %)) data)))
-;
-;(defn create-cross-proj-model
-;  [db players-data]
-;  (let [points (prepare-projections-data
-;                 (load-yesterday-proj-and-actual db players-data))
-;        {:keys [coefs f-prob t-probs mse r-square]}
-;          (linear-model (map last points) (map #(take (dec (count (first points))) %) points))]
-;    (println (str "f-prob: " f-prob ", mse: " mse ", R^2: " r-square))
-;    (println "t-probs")
-;    (pp/pprint t-probs)
-;    (println "coefs")
-;    (pp/pprint coefs)
-;    coefs))
-;
-;(defn draw-proj-data
-;  [db players-data]
-;  (let [points (prepare-projections-data
-;                 (load-yesterday-proj-and-actual db players-data))
-;        coefs (create-cross-proj-model db players-data)
-;        real-vals (map last points)
-;        ;projection (map #(+ (nth coefs 0)
-;        ;                    (* (nth coefs 1) (nth % 0))
-;        ;                    (* (nth coefs 2) (nth % 1))
-;        ;                    ) points)
-;        ;linear (map #(nth % 0) points)
-;        ;svm (map #(nth % 1) points)
-;        roto (map #(nth % 2) points)
-;        ]
-;    (doto
-;      (charts/scatter-plot real-vals roto :legend true)
-;      (charts/add-function (fn [n] n) -5 80)
-;      view "linear")))
+(defn prepare-projections-data
+  [db]
+  (let [proj  (:proj (mc/find-one-as-map db c/*collection* {:type :projections :date "02062016"}))
+        actual (:actual (mc/find-one-as-map db c/*collection* {:type :actual :date "2/6/16"}))
+        ]
+    (map (fn [{:keys [Name linear-projection rotogrinders-projection roto-wire-projection]}]
+                  (let [a (filter #(= Name (first %)) actual)
+                        actual (if (empty? a)
+                                 0
+                                 (second (first a)))]
+                    [
+                     linear-projection
+                     (utils/nil->zero rotogrinders-projection)
+                     (utils/nil->zero roto-wire-projection)
+                     (utils/nil->zero actual)]))
+                proj)))
+
+(defn create-cross-proj-model
+  [db]
+  (let [points (prepare-projections-data db)
+        {:keys [coefs f-prob t-probs mse r-square]}
+          (linear-model (map last points) (map #(take (dec (count (first points))) %) points))]
+    (println (str "f-prob: " f-prob ", mse: " mse ", R^2: " r-square))
+    (println "t-probs")
+    (pp/pprint t-probs)
+    (println "coefs")
+    (pp/pprint coefs)
+    coefs))
+
+(defn draw-proj-data
+  [db]
+  (let [points (prepare-projections-data db)
+        real-vals (map last points)
+        mine (map #(nth % 0) points)
+        ]
+    (doto
+      (charts/scatter-plot real-vals mine :legend true)
+      (charts/add-function (fn [n] n) -5 80)
+      view)))
 ;
 ;(defn draw-data
 ;  [db contest-provider coefs]

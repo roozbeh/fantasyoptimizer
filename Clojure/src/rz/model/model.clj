@@ -77,7 +77,7 @@
      }))
 
 (defn- data-from-events-espn
-  [{:keys [Name Position espn-data]} event-current events contest-provider]
+  [{:keys [Name Position espn-data] :as db-player} event-current events contest-provider]
   (let [ftps-keyword (get-point-function contest-provider)
         event-last (last events)
         home-events (filter #(= true (:home-game %)) events)
@@ -128,6 +128,8 @@
 
      :team-name (:team-name event-current)
      :opp-name (:opp-name event-current)
+
+     :is_win (if (= "W" (:match-status event-current)) 1 0)
 
      ;label -> only for train
      :pts-current (get event-current ftps-keyword -1)

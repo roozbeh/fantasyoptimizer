@@ -61,7 +61,6 @@
   (and true
        (not (= 0 dk-salary))
        (not (= 0 fd-salary))
-       ;(not (= "2/4/16" game-date))
        ))
 
 (defn ingest-player-info

@@ -152,8 +152,6 @@
                          (-> leaderboard-txt (string/replace #"#" "") read-string)
                          100)
      :events
-                  ;(filter
-                  ;  #(not (= (:DATE %) "Wed 2/5"))
                     (map (fn [l]
                          (let [DATE (-> l :content first :content first)
                                [three-PM three-PA] (string/split (-> l :content (nth 6) :content first) #"-")
@@ -185,7 +183,6 @@
                             :points              (-> l :content (nth 16) :content first utils/nil->zero)}))
                        (filter #(= 17 (count (:content %)))
                                (filter-2016 game-log)))
-                    ;)
      }))
 
 

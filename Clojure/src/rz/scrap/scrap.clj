@@ -5,8 +5,8 @@
 (defn create-players
   [db players-data]
   (doall
-    (map (fn [p]
-           (if (empty? (mc/find-maps db c/*collection* {:Name (:Name p)}))
+    (map (fn [{:keys [Name] :as p}]
+           (if (empty? (mc/find-maps db c/*collection* {:Name Name}))
              (mc/insert db c/*collection* p)
              ;(println (str "Player already exists: " (:Name p)))
              ))

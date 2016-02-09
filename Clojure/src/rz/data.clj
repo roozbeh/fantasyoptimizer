@@ -11,10 +11,10 @@
             [incanter.stats :refer :all]
             [rz.optimizers.utils :as utils]))
 
-(def players-csv-fd "../data/fd_nba_feb_6.csv")
+(def players-csv-fd "../data/fd_nba_feb_8.csv")
 ;(def players-csv-dk "../data/dk_nba_jan_30.csv")
 
-(def lineup-csv-dk "../data/dk_nba_linup_feb_6.csv")
+(def lineup-csv-dk "../data/dk_nba_linup_feb_8.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
 
@@ -245,21 +245,19 @@
                 :proj players-proj})
     (println (str "projection updated for: " date-str))))
 
-
-;"2/4/16"
 (defn save-actual
   [db player-names date-str]
   (mc/remove db c/*collection* {:type :actual :date date-str})
   (mc/insert db c/*collection*
-             {:type :actual
-              :date date-str
-              :actual
-                    (map (fn [{:keys [rotogrinder-events Name]}]
-                           [Name (:draftking-fpts
-                                   (first
-                                     (filter #(= date-str (:game-date %))
-                                             rotogrinder-events)))])
-                         (mc/find-maps db c/*collection* {:Name {$in player-names}}))}))
+           {:type :actual
+            :date date-str
+            :actual
+                  (map (fn [{:keys [rotogrinder-events Name]}]
+                         [Name (:draftking-fpts
+                                 (first
+                                   (filter #(= date-str (:game-date %))
+                                           rotogrinder-events)))])
+                       (mc/find-maps db c/*collection* {:Name {$in player-names}}))}))
 
 (defn filter-suckers
   [db players-data]

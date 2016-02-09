@@ -63,7 +63,9 @@
         coefs (linear/create-model db c/*fanduel* player-names)
         players-proj (svm/predict-players db players-data c/*fanduel*)
         players-proj (linear/add-linear-projection db players-proj coefs c/*fanduel*)]
-    (coinmp/lpsolve-solve-fanduel players-proj  :svm-projection)))
+    (coinmp/lpsolve-solve-fanduel players-proj  :svm-projection)
+    )
+  )
 
 
 (defn- optimize-draftking-lineups
@@ -75,26 +77,33 @@
         player-names (map :Name players-data)
         ;_  (ingest-data players-data)
         coefs (linear/create-model db c/*draftking* player-names)
-        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)]
+        players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)
+        ]
     (data/save-solutions
       (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)
       c/*draftking*)
-    ;players-proj
     ))
 
 (defn- optimize-draftking-lineups-svm
   []
   (let [db (utils/get-db)
-        players-data (data/init-players-data-draftking2)
-        players-data (data/remove-injured players-data)
+        players-data (data/filter-suckers db
+                                          (data/remove-injured
+                                            (data/init-players-data-draftking2)))
         player-names (map :Name players-data)
-        _  (ingest-data players-data)
+        ;_  (ingest-data players-data)
         o (svm/create-model db c/*draftking* player-names)
         _ (println o)
         coefs (linear/create-model db c/*draftking* player-names)
         players-proj (svm/predict-players db players-data c/*draftking*)
         players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)]
-    (coinmp/lpsolve-solve-draftkings players-proj  :svm-projection)))
+    ;(coinmp/lpsolve-solve-draftkings players-proj  :svm-projection)
+    ;(map (fn [{:keys [Name svm-projection]}] [Name svm-projection]) players-proj)
+    (data/save-solutions
+      (coinmp/lpsolve-solve-draftkings players-proj  :svm-projection)
+      c/*draftking*)
+
+    ))
 
 (defn- optimize-draftking-lineups-avg
   []
@@ -119,6 +128,13 @@
       c/*draftking*)))
 
 ;TODO: to timestamp database, to make sure old data is not being regressioned!
+
+(defn save-actual
+  [date-str]
+  (let [db (utils/get-db)
+        players-data (data/init-players-data-draftking2)
+        player-names (map :Name players-data)]
+    (data/save-actual db player-names date-str)))
 
 (defn save-projections-dk
   []
