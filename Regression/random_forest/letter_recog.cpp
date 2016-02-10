@@ -98,7 +98,7 @@ read_num_class_data( const char* filename, int var_count,
     return 1;
 }
 
-void printMat(CvMat* mat)
+void printMat(const CvMat* mat)
 {
     printf("(%dx%d)\n",mat->cols,mat->rows);
     for(int i=0; i<mat->rows; i++)
@@ -108,35 +108,54 @@ void printMat(CvMat* mat)
             for(int j=0; j<mat->cols; j++)  printf("%10d",j+1);
         }
 
-        printf("\n%4d: ",i+1);
+//        printf("\n%4d: ",i+1);
+        printf("\n");
         for(int j=0; j<mat->cols; j++)
         {
 
             printf("%10.2f",cvGet2D(mat,i,j).val[0]);
         }
     }
+    printf("\n");
 }
 
 static
 int build_rtrees_classifier( char* data_filename,
     char* filename_to_save, char* filename_to_load )
 {
-    CvMat* data = 0;
-    CvMat* responses = 0;
+    // CvMat* data = 0;
+    // CvMat* responses = 0;
     CvMat* var_type = 0;
     CvMat* sample_idx = 0;
 
-    int ok = read_num_class_data( data_filename, VAR_COUNT, &data, &responses );
+    // int ok = read_num_class_data( data_filename, VAR_COUNT, &data, &responses );
+	
+	CvMLData cvml;
+    if ( cvml.read_csv(data_filename) < 0) {
+        printf( "Could not read the database %s\n", data_filename );
+        return -1;
+    }
+	cvml.set_response_idx(9);
+	const CvMat* all_data = cvml.get_values();
+    
+    cv::Mat all_data_mat = all_data;
+    cv::Mat data1 = all_data_mat.colRange(0, all_data->cols-1);
+    CvMat data2 = data1;
+    CvMat *data = &data2;
+
+    const CvMat* responses = cvml.get_responses();
+	std::cout << "Rows: " << data->rows << " Cols: " << data->cols << std::endl;
+		
     int nsamples_all = 0, ntrain_samples = 0;
     int i = 0;
     CvRTrees forest;
     CvMat* var_importance = 0;
 
-    if( !ok )
-    {
-        printf( "Could not read the database %s\n", data_filename );
-        return -1;
-    } 
+    // if( !ok )
+    // {
+    //     printf( "Could not read the database %s\n", data_filename );
+    //     return -1;
+    // } 
 
     nsamples_all = data->rows;
     printf( "The database %s is loaded, rows: %d, cols: %d\n", data_filename, nsamples_all, data->cols);
@@ -188,28 +207,29 @@ int build_rtrees_classifier( char* data_filename,
     // compute prediction error on train and test data
     for( i = 0; i < nsamples_all; i++ )
     {
-        double r;
         CvMat sample;
         cvGetRow( data, &sample, i );
 
-        r = forest.predict( &sample );
+//        printMat(&sample);
+        
+        double r = forest.predict( &sample );
         // r = fabs((double)r - responses->data.fl[i]) <= FLT_EPSILON ? 1 : 0;
 
-		double error = r - responses->data.fl[i];
+        double actual = cvGet2D(responses,i,0).val[0];
+		double error = r - actual;
 
         if( i < ntrain_samples ) {
 			printf("TRAIN ");
-            train_hr += fabs(error)/responses->data.fl[i];
+            train_hr += fabs(error)/actual;
 			train_mse += error*error;
         } else {
-			printMat(&sample);
 			
 			printf("TEST ");
-            test_hr += fabs(error)/responses->data.fl[i];
+            test_hr += fabs(error)/actual;
 			test_mse += error*error;
 		}
 
-		printf("predicted: %6.3g, actual: %6.3g, error: %6.2g\n", r, responses->data.fl[i], error*error);
+		printf("predicted: %6.3g, actual: %6.3g, error: %6.2g\n", r, actual, error*error);
     }
 
 	train_mse /= (double)(nsamples_all-ntrain_samples);
@@ -235,6 +255,7 @@ int build_rtrees_classifier( char* data_filename,
             100.f*var_importance->data.fl[i]/rt_imp_sum);
     }
 
+#if 0
     //Print some proximitites
     printf( "Proximities between some samples corresponding to the letter 'T':\n" );
     {
@@ -249,15 +270,15 @@ int build_rtrees_classifier( char* data_filename,
                 forest.get_proximity( &sample1, &sample2 )*100. );
         }
     }
-
+#endif
     // Save Random Trees classifier to file if needed
     if( filename_to_save )
         forest.save( filename_to_save );
 
     cvReleaseMat( &sample_idx );
     cvReleaseMat( &var_type );
-    cvReleaseMat( &data );
-    cvReleaseMat( &responses );
+    // cvReleaseMat( &data );
+    // cvReleaseMat( &responses );
 
     return 0;
 }
