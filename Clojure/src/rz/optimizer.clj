@@ -15,6 +15,7 @@
             [rz.model.model :as model]
             [rz.model.linear :as linear]
             [rz.model.svm :as svm]
+            [rz.model.random-forest :as rtree]
             [rz.model.logistic :as logistic]
             [rz.optimizers.utils :as utils]
             [incanter.stats :refer :all]
@@ -24,12 +25,12 @@
 
 (defn- force-espn-update
   []
-  (espn/ingest-data (data/init-players-data-draftking2)
+  (espn/ingest-data (data/init-players-data-fanduel)
                          :force-update true))
 
 (defn- force-rotogrinders-update
   []
-  (rotoscrap/ingest-data (data/init-players-data-draftking2)
+  (rotoscrap/ingest-data (data/init-players-data-fanduel)
                     :force-update true))
 
 (defn ingest-data
@@ -66,6 +67,22 @@
     (coinmp/lpsolve-solve-fanduel players-proj  :svm-projection)
     )
   )
+
+(defn- optimize-fanduel-rtree
+  []
+  (let [db (utils/get-db)
+        players-data (data/filter-suckers db
+                                          (data/remove-injured
+                                            (data/init-players-data-fanduel)))
+        player-names (map :Name players-data)
+        o (rtree/create-model db c/*fanduel* player-names)
+        coefs (linear/create-model db c/*fanduel* player-names)
+        players-proj (rtree/predict-players db players-data c/*fanduel*)
+        players-proj (linear/add-linear-projection db players-proj coefs c/*fanduel*)
+        ]
+    (data/save-solutions
+      (coinmp/lpsolve-solve-fanduel players-proj  :rtree-projection)
+      c/*fanduel*)))
 
 
 (defn- optimize-draftking-lineups
@@ -104,6 +121,23 @@
       c/*draftking*)
 
     ))
+
+(defn- optimize-draftkings-rtree
+  []
+  (let [db (utils/get-db)
+        players-data (data/filter-suckers db
+                                          (data/remove-injured
+                                            (data/init-players-data-draftking2)))
+        player-names (map :Name players-data)
+        o (rtree/create-model db c/*draftking* player-names)
+        coefs (linear/create-model db c/*draftking* player-names)
+        players-proj (rtree/predict-players db players-data c/*draftking*)
+        players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)
+        ]
+    (data/save-solutions
+      (coinmp/lpsolve-solve-draftkings players-proj  :rtree-projection)
+      c/*draftking*)))
+
 
 (defn- optimize-draftking-lineups-avg
   []

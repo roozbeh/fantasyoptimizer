@@ -36,8 +36,9 @@
 
 (defn calc-team-stats
   [team]
-  (map (fn [{:keys [Name IsHome Position Salary roto-wire-projection FPPG injury my-projection teamAbbrev GameInfo
-                    linear-projection svm-projection rotogrinders-projection]}]
+  (map (fn [{:keys [Name IsHome Position Salary roto-wire-projection FPPG injury
+                    my-projection teamAbbrev GameInfo
+                    linear-projection svm-projection rotogrinders-projection rtree-projection]}]
          (let [db-player (mc/find-one-as-map (get-db) c/*collection* {:Name Name})
                events (sort-by :game-epoch (:rotogrinder-events db-player))
                last-event (last events)
@@ -50,6 +51,7 @@
             :FPPG    (format "%2.2f" (array->mean (map :draftking-fpts (:events (:espn-data db-player)))))
             :LinProj (if (nil? linear-projection) 0 (format "%2.2f" linear-projection))
             :SVMProj (if (nil? svm-projection) 0 svm-projection)
+            :TreeProj (if (nil? rtree-projection) 0 rtree-projection)
             :Roto    (if (nil? roto-wire-projection) "0" roto-wire-projection)
             :Grndr   (if (nil? rotogrinders-projection) "0" rotogrinders-projection)
             :Last    (:draftking-fpts last-event)
@@ -93,9 +95,18 @@
 
 (defn print-team2
   [team]
-  (let [stated-team (calc-team-stats team)]
+  (let [stated-team (calc-team-stats team)
+        column [:home? :Pos :name :FPPG :minutes :StdDev :Last :LinProj :injury :Sal]
+        add-column (fn [column kw kwd2]
+                     (if (some? (kw (first team)))
+                       (conj column kwd2)
+                       column))
+        column (add-column column :svm-projection :SVMProj)
+        column (add-column column :rotogrinders-projection :Grndr)
+        column (add-column column :roto-wire-projection :Roto)
+        column (add-column column :rtree-projection :TreeProj)]
     (pp/print-table
-      [:home? :Pos :name :FPPG :minutes :StdDev :Last :Roto :Grndr :LinProj :SVMProj :injury :Sal]
+      column
       (concat stated-team
               [(calc-totals stated-team)]))))
 

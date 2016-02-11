@@ -44,7 +44,7 @@
             is-top                                          ;BAD 0.3040758717420722
             last-event-pts                                  ;BAD 0.7107637646273752
             experience                                      ;BAD 0.3321079046177915
-            is_win
+            ;is_win
 
 
             (utils/nil->zero pts-current)]
@@ -69,9 +69,6 @@
          ;points (take 10 points)
         {:keys [coefs f-prob t-probs mse r-square]}
         (linear-model (map last points) (map #(take (dec (count (first points))) %) points))]
-
-     (with-open [out-file (io/writer "../points.csv")]
-       (csv/write-csv out-file points))
 
     (println (str "f-prob: " f-prob ", mse: " mse ", R^2: " r-square))
     (println (str "input data size: " (count points)))

@@ -111,9 +111,11 @@
      :current-home (get event-current :home-game -1)
      :event-cnt (count events)
 
-     :season-salary (:salary espn-data)
-     :experience (:experience espn-data)
-     :is-top (utils/bool->int (< (:leaderboard-rank espn-data) 1))
+     :season-salary (get espn-data :salary 500000)
+     :experience (get espn-data :experience 1)
+     :is-top (if (:leaderboard-rank espn-data)
+               (utils/bool->int (< (:leaderboard-rank espn-data) 1))
+               0)
 
      :G (utils/bool->int (or (= "PG" Position) (= "SG" Position)))
      :F (utils/bool->int (or (= "PF" Position) (= "SF" Position)))
