@@ -10,3 +10,11 @@ Clojure/.nrepl-port
 Clojure/target
 Regression/libsvm/svm.o
 Solver/cpplex/build
+Regression/random_forest/RandomForest.xcodeproj/project.xcworkspace
+rtree_model.xml
+rtree_output.csv
+rtree_predict.csv
+svm_predict_file
+svm_predict_file_unscaled
+Clojure/.lein-repl-history
+Clojure/solution.simplex
