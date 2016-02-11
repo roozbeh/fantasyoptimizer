@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		BDE14A4A1C6B051D0030F7FE /* letter_recog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDE14A491C6B051D0030F7FE /* letter_recog.cpp */; };
 		BDE14A4C1C6B05F00030F7FE /* libopencv_core.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BDE14A4B1C6B05F00030F7FE /* libopencv_core.dylib */; };
 		BDE14A4E1C6B05F80030F7FE /* libopencv_ml.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BDE14A4D1C6B05F80030F7FE /* libopencv_ml.dylib */; };
+		BDE37A7E1C6BCAD200D8CBC5 /* rtree_reg.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDE37A7D1C6BCAD200D8CBC5 /* rtree_reg.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,9 +26,9 @@
 
 /* Begin PBXFileReference section */
 		BDE14A3F1C6B04DD0030F7FE /* RandomForest */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = RandomForest; sourceTree = BUILT_PRODUCTS_DIR; };
-		BDE14A491C6B051D0030F7FE /* letter_recog.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = letter_recog.cpp; sourceTree = SOURCE_ROOT; };
 		BDE14A4B1C6B05F00030F7FE /* libopencv_core.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libopencv_core.dylib; path = ../../../../../../../usr/local/Cellar/opencv/2.4.12_2/lib/libopencv_core.dylib; sourceTree = "<group>"; };
 		BDE14A4D1C6B05F80030F7FE /* libopencv_ml.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libopencv_ml.dylib; path = ../../../../../../../usr/local/Cellar/opencv/2.4.12_2/lib/libopencv_ml.dylib; sourceTree = "<group>"; };
+		BDE37A7D1C6BCAD200D8CBC5 /* rtree_reg.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = rtree_reg.cpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,7 +65,7 @@
 		BDE14A411C6B04DD0030F7FE /* RandomForest */ = {
 			isa = PBXGroup;
 			children = (
-				BDE14A491C6B051D0030F7FE /* letter_recog.cpp */,
+				BDE37A7D1C6BCAD200D8CBC5 /* rtree_reg.cpp */,
 			);
 			path = RandomForest;
 			sourceTree = "<group>";
@@ -126,7 +126,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BDE14A4A1C6B051D0030F7FE /* letter_recog.cpp in Sources */,
+				BDE37A7E1C6BCAD200D8CBC5 /* rtree_reg.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

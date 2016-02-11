@@ -119,51 +119,57 @@ void printMat(const CvMat* mat)
     printf("\n");
 }
 
+/**
+ * data_filename: input CSV for training or prediction
+ * filename_to_save: tree file (output for train)
+ * filename_to_load: tree file (input for predict)
+ * filename_to_output: prediction output
+ */
 static
 int build_rtrees_classifier( char* data_filename,
-    char* filename_to_save, char* filename_to_load )
+    char* filename_to_save, char* filename_to_load, char *filename_to_output )
 {
     // CvMat* data = 0;
     // CvMat* responses = 0;
     CvMat* var_type = 0;
     CvMat* sample_idx = 0;
 
-    // int ok = read_num_class_data( data_filename, VAR_COUNT, &data, &responses );
-	
 	CvMLData cvml;
     if ( cvml.read_csv(data_filename) < 0) {
         printf( "Could not read the database %s\n", data_filename );
         return -1;
     }
-	cvml.set_response_idx(9);
-	const CvMat* all_data = cvml.get_values();
+
+    const CvMat* all_data = cvml.get_values();
     
     cv::Mat all_data_mat = all_data;
     cv::Mat data1 = all_data_mat.colRange(0, all_data->cols-1);
     CvMat data2 = data1;
     CvMat *data = &data2;
 
+    cvml.set_response_idx(all_data->cols-1);
     const CvMat* responses = cvml.get_responses();
-	std::cout << "Rows: " << data->rows << " Cols: " << data->cols << std::endl;
+    
+    std::cout << "Train matrix: " << data->rows << " x " << data->cols << std::endl;
+    std::cout << "Response matrix: " << responses->rows << " x " << responses->cols << std::endl;
 		
     int nsamples_all = 0, ntrain_samples = 0;
     int i = 0;
     CvRTrees forest;
     CvMat* var_importance = 0;
 
-    // if( !ok )
-    // {
-    //     printf( "Could not read the database %s\n", data_filename );
-    //     return -1;
-    // } 
 
     nsamples_all = data->rows;
-    printf( "The database %s is loaded, rows: %d, cols: %d\n", data_filename, nsamples_all, data->cols);
-    ntrain_samples = (int)(nsamples_all*0.8);
+    printf( "The database %s is loaded, rows: %d, cols: %d\n", data_filename, nsamples_all, all_data->cols);
 
     // Create or load Random Trees classifier
     if( filename_to_load )
     {
+        if (!filename_to_output) {
+            fprintf(stderr, "Please specify output file!\n");
+            return -1;
+        }
+        
         // load classifier from the specified file
         forest.load( filename_to_load );
         ntrain_samples = 0;
@@ -176,6 +182,9 @@ int build_rtrees_classifier( char* data_filename,
     }
     else
     {
+        //    ntrain_samples = (int)(nsamples_all*0.8);
+        ntrain_samples = nsamples_all;
+
         // create classifier by using <data> and <responses>
         printf( "Training the classifier ...\n");
 
@@ -191,8 +200,9 @@ int build_rtrees_classifier( char* data_filename,
             cvGetCols( sample_idx, &mat, 0, ntrain_samples );
             cvSet( &mat, cvRealScalar(1) );
 
-            cvGetCols( sample_idx, &mat, ntrain_samples, nsamples_all );
-            cvSetZero( &mat );
+//            ROOZBEH: no testing
+//            cvGetCols( sample_idx, &mat, ntrain_samples, nsamples_all );
+//            cvSetZero( &mat );
         }
 
         // 3. train classifier
@@ -204,6 +214,8 @@ int build_rtrees_classifier( char* data_filename,
     double train_hr = 0, test_hr = 0;
     double train_mse = 0, test_mse = 0;
 
+    FILE *fp = fopen(filename_to_output, "w");
+    
     // compute prediction error on train and test data
     for( i = 0; i < nsamples_all; i++ )
     {
@@ -212,65 +224,52 @@ int build_rtrees_classifier( char* data_filename,
 
 //        printMat(&sample);
         
-        double r = forest.predict( &sample );
+        double predict = forest.predict( &sample );
         // r = fabs((double)r - responses->data.fl[i]) <= FLT_EPSILON ? 1 : 0;
 
         double actual = cvGet2D(responses,i,0).val[0];
-		double error = r - actual;
+		double error = predict - actual;
 
         if( i < ntrain_samples ) {
-			printf("TRAIN ");
             train_hr += fabs(error)/actual;
 			train_mse += error*error;
         } else {
-			
-			printf("TEST ");
+            fprintf(fp, "%.3g\n",predict);
+            
             test_hr += fabs(error)/actual;
 			test_mse += error*error;
-		}
 
-		printf("predicted: %6.3g, actual: %6.3g, error: %6.2g\n", r, actual, error*error);
+//DEBUG            printf("predicted: %6.3g, actual: %10.2g, error: %ld\n", predict, actual, (long)(error*error));
+		}
     }
 
-	train_mse /= (double)(nsamples_all-ntrain_samples);
+    fclose(fp);
+    
+	train_mse /= (double)ntrain_samples;
 	test_mse /= (double)(nsamples_all-ntrain_samples);
 	
     test_hr /= (double)(nsamples_all-ntrain_samples);
     train_hr /= (double)ntrain_samples;
-    printf( "Recognition rate: train = %.1f%%, test = %.1f%%\n",
-            train_hr*100., test_hr*100. );
-    printf( "Recognition rate: train_mse = %.1f, test_mse = %.1f\n",
-            train_mse, test_mse);
+    
+    printf( "Recognition rate: train_mse = %.1f%%, test_mse = %.1f%%\n",
+           train_mse, test_hr*100. );
 
     printf( "Number of trees: %d\n", forest.get_tree_count() );
 
-    // Print variable importance
-    var_importance = (CvMat*)forest.get_var_importance();
-    if( var_importance )
-    {
-        double rt_imp_sum = cvSum( var_importance ).val[0];
-        printf("var#\timportance (in %%):\n");
-        for( i = 0; i < var_importance->cols; i++ )
-            printf( "%-2d\t%-4.1f\n", i,
-            100.f*var_importance->data.fl[i]/rt_imp_sum);
-    }
-
-#if 0
-    //Print some proximitites
-    printf( "Proximities between some samples corresponding to the letter 'T':\n" );
-    {
-        CvMat sample1, sample2;
-        const int pairs[][2] = {{0,103}, {0,106}, {106,103}, {-1,-1}};
-
-        for( i = 0; pairs[i][0] >= 0; i++ )
+    // only in training time, print these
+    if (!filename_to_load) {
+        // Print variable importance
+        var_importance = (CvMat*)forest.get_var_importance();
+        if( var_importance )
         {
-            cvGetRow( data, &sample1, pairs[i][0] );
-            cvGetRow( data, &sample2, pairs[i][1] );
-            printf( "proximity(%d,%d) = %.1f%%\n", pairs[i][0], pairs[i][1],
-                forest.get_proximity( &sample1, &sample2 )*100. );
+            double rt_imp_sum = cvSum( var_importance ).val[0];
+            printf("var#\timportance (in %%):\n");
+            for( i = 0; i < var_importance->cols; i++ )
+                printf( "%-2d\t%-4.1f\n", i,
+                       100.f*var_importance->data.fl[i]/rt_imp_sum);
         }
     }
-#endif
+
     // Save Random Trees classifier to file if needed
     if( filename_to_save )
         forest.save( filename_to_save );
@@ -799,6 +798,7 @@ int main( int argc, char *argv[] )
 {
     char* filename_to_save = 0;
     char* filename_to_load = 0;
+    char* filename_to_output = NULL;
     char default_data_filename[] = "./letter-recognition.data";
     char* data_filename = default_data_filename;
     int method = 0;
@@ -806,7 +806,6 @@ int main( int argc, char *argv[] )
     int i;
     for( i = 1; i < argc; i++ )
     {
-		printf("argv: %s\n", argv[i]);
         if( strcmp(argv[i],"-data") == 0 ) // flag "-data letter_recognition.xml"
         {
             i++;
@@ -821,6 +820,11 @@ int main( int argc, char *argv[] )
         {
             i++;
             filename_to_load = argv[i];
+        }
+        else if( strcmp(argv[i],"-output") == 0) // flag "-output filename"
+        {
+            i++;
+            filename_to_output = argv[i];
         }
         else if( strcmp(argv[i],"-boost") == 0)
         {
@@ -846,14 +850,9 @@ int main( int argc, char *argv[] )
             break;
     }
 
-	printf ("method: %d\n", method);
-	printf ("filename_to_save: %s\n", filename_to_save);
-	printf ("data_filename: %s\n", data_filename);
-	printf ("filename_to_load: %s\n", filename_to_load);
-	
     if( i < argc ||
         (method == 0 ?
-        build_rtrees_classifier( data_filename, filename_to_save, filename_to_load ) :
+        build_rtrees_classifier( data_filename, filename_to_save, filename_to_load, filename_to_output ) :
         method == 1 ?
         build_boost_classifier( data_filename, filename_to_save, filename_to_load ) :
         method == 2 ?
