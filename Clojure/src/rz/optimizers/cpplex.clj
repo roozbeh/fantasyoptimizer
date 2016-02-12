@@ -5,15 +5,15 @@
             [rz.data :as data]
             [rz.optimizers.constants :as constaints]
             [rz.optimizers.utils :as utils]
-            )
+            [rz.optimizers.report :as report])
   (:gen-class))
 
 
 
-(defonce players-data
-         (data/add-rotowires-projection
-           (filter #(not (= "O" (:injury %))) (data/init-players-data))
-           constaints/*fanduel*))
+;(defonce players-data
+;         (data/add-rotowires-projection
+;           (filter #(not (= "O" (:injury %))) (data/init-players-data))
+;           constaints/*fanduel*))
 
 (def ^:dynamic *problem-file*  "/Users/roozbeh/Documents/FantasyOptimizer/fantasy.problem")
 (def ^:dynamic *cpplex-solver-binary* "../Solver/cpplex/build/main")
@@ -149,7 +149,7 @@
       (let [variables (filter (fn [l] (re-find #"x_[0-9]+:\t\t\t1" l)) (string/split-lines out))
             indexes (map #(read-string (second (re-matches #"x_([0-9]+):\t\t\t1" %))) variables)
             team (map #(nth players-data %) indexes)]
-        (utils/print-team2 team))
+        (report/print-team2 team))
       (println (str "ERROR HAPPENED: \n" err))))
 
 

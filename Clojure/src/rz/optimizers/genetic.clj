@@ -2,10 +2,11 @@
   (:require [ga.core :as ga]
             [rz.data :as data]
             [rz.optimizers.constants :as constaints]
-            [rz.optimizers.utils :as utils]))
+            [rz.optimizers.utils :as utils]
+            [rz.optimizers.report :as report]))
 
 
-(defonce players-data (data/add-rotowires-projection (data/init-players-data) constaints/*fanduel*))
+;(defonce players-data (data/add-rotowires-projection (data/init-players-data) constaints/*fanduel*))
 
 (def ^:dynamic *salary-penalty* -1000000 )
 (def ^:dynamic *equal-penalty* -1000000 )
@@ -100,5 +101,6 @@
   (let [best-yet (ga/evolve2 10000 0.01 init-value mutator fitness 100000)
         best-team (:value best-yet)]
     (println (str "Fitness: " (fitness best-team)))
-    (utils/print-team best-team)
-    (utils/print-team-metrics best-team)))
+    ;(report/print-team best-team)
+    ;(report/print-team-metrics best-team)
+    ))

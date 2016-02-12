@@ -18,3 +18,4 @@ svm_predict_file
 svm_predict_file_unscaled
 Clojure/.lein-repl-history
 Clojure/solution.simplex
+random_forest/RandomForest.xcodeproj/xcuserdata/roozbeh.xcuserdatad/xcschemes/Predict.xcscheme

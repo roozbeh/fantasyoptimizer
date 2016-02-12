@@ -79,7 +79,7 @@
 (defn calc-fd-score
   [{:keys [points rebounds assists steals blocks turnover three-PM FTM]}]
   (+ points
-     FTM
+     ;FTM  ;TODO: To make sure
      (* 1.2 rebounds)
      (* 1.5 assists)
      (* 2 steals)
@@ -155,11 +155,13 @@
                     (map (fn [l]
                          (let [DATE (-> l :content first :content first)
                                [three-PM three-PA] (string/split (-> l :content (nth 6) :content first) #"-")
-                               [FTM FTA] (string/split (-> l :content (nth 8) :content first) #"-")]
+                               [FTM FTA] (string/split (-> l :content (nth 8) :content first) #"-")
+                               game-epoch (.getTime (.parse (SimpleDateFormat. "EEE MM/dd/yyyy") (add-year DATE)))]
                            {
                             :DATE                DATE
                             :game-date           (add-year DATE)
-                            :game-epoch          (.getTime (.parse (SimpleDateFormat. "EEE MM/dd/yyyy") (add-year DATE)))
+                            :game-epoch          game-epoch
+                            :day-cntr            (int (/ (- game-epoch 1443758400000) 86400000))
                             :home-game           (= "vs" (-> (html/select l [:.game-schedule :.game-location]) first :content first))
                             :opp-team            (or (-> (html/select l [:.team-name :a]) first :content first)
                                                      (-> (html/select l [:.team-name]) first :content first))
@@ -256,7 +258,19 @@
                                                         :espn-data (add-score (ingest-player espn-player))))))))
                     players)))))
 
-(comment
-  ;player url: "http://espn.go.com/nba/player/gamelog/_/id/4240/avery-bradley"
-  ;team url:
-  )
+(defn- get-player-score
+  [name fpts-kwd real-date]
+  (let [db (utils/get-db)
+        name (if-let [e-map (first (filter #(= (second %) name) espn-name-mapping))]
+                    (first e-map)
+                    name)
+        espn-data (add-score
+                    (ingest-player (first
+                                     (filter #(= (:Name %) name) (get-espn-players db)))))
+        ev (first (filter #(= real-date (:game-date %)) (:events espn-data)))
+        score (fpts-kwd ev)]
+    (println (str name " -> " score))
+    score))
+
+(def get-player-score-memo
+  (memoize get-player-score))

@@ -5,7 +5,8 @@
             [rz.data :as data]
             [rz.optimizers.constants :as constants]
             [rz.optimizers.utils :as utils]
-            [rz.optimizers.constants :as c])
+            [rz.optimizers.constants :as c]
+            [rz.optimizers.report :as report])
   (:gen-class))
 
 
@@ -129,7 +130,9 @@
   (.write w (str "    RHS1      SAL             " max-salary "                         \n"))
   (doall
     (for [[row-name solution-vars] solutions]
-      (.write w (str "    RHS1      "row-name"               6.0                         \n")))))
+      (.write w (str "    RHS1      "row-name"               " (if (= context-provider c/*fanduel*)
+                                                                 c/*max-common-players-fanduel*
+                                                                 c/*max-common-players-draftkings*)  "                         \n")))))
 
 
 (defn- write-bounds
@@ -187,7 +190,7 @@
       (let [indexes (map #(Integer/parseInt (second (re-matches #"X([0-9]+)" %))) variables)
             team (map #(nth players-data %) indexes)]
         (println row)
-        (utils/print-team2 team)
+        (report/print-team2 team)
         (map #(list (:Position %) (:NameID %)) team)))))
 
 ;(defn lpsolve-solve
@@ -205,8 +208,10 @@
 (defn lpsolve-solve-draftkings
   [player-with-proj proj-keyword]
   (print-solutions
-    (lpsolve-solve-multiple constants/*team-salary-draftkings* player-with-proj 5 c/*draftking* proj-keyword)
-    (data/add-rotowires-projection player-with-proj c/*draftking*)))
+    (lpsolve-solve-multiple constants/*team-salary-draftkings* player-with-proj c/*solution-cnt* c/*draftking* proj-keyword)
+    ;(data/add-rotowires-projection player-with-proj c/*draftking*)
+    player-with-proj
+    ))
 
 
 
@@ -214,6 +219,6 @@
 (defn lpsolve-solve-fanduel
   [player-with-proj proj-keyword]
   (print-solutions
-    (lpsolve-solve-multiple constants/*team-salary-fanduel* player-with-proj 5 c/*fanduel* proj-keyword)
+    (lpsolve-solve-multiple constants/*team-salary-fanduel* player-with-proj c/*solution-cnt* c/*fanduel* proj-keyword)
     (data/add-rotowires-projection player-with-proj c/*fanduel*)))
 

@@ -206,8 +206,22 @@ int build_rtrees_classifier( char* data_filename,
         }
 
         // 3. train classifier
+        int num_features = data->cols;
+        int num_samples = data->rows;
+        
         forest.train( data, CV_ROW_SAMPLE, responses, 0, sample_idx, var_type, 0,
-            CvRTParams(10,10,0.0001f,false,15,0,true,4,100,0.01f,CV_TERMCRIT_ITER));
+            CvRTParams(10, //max_depth - def 10
+                       10, //min_sample_count - def 10
+                       0.0001f, //regression_accuracy
+                       false, //use_surrogates
+                       15,
+                       0, //priors
+                       true, //calc_var_importance
+                       0, //nactive_vars - def 4
+                       1000, //max_num_of_trees_in_the_forest
+                       0.01f, //forest_accuracy
+                       CV_TERMCRIT_ITER //CV_TERMCRIT_ITER or CV_TERMCRIT_EPS or
+                       ));
         printf( "\n");
     }
 
@@ -866,6 +880,7 @@ int main( int argc, char *argv[] )
         -1) < 0)
     {
         help();
+        return -1;
     }
     return 0;
 }

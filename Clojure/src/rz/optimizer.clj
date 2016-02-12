@@ -96,6 +96,13 @@
         coefs (linear/create-model db c/*draftking* player-names)
         players-proj (linear/add-linear-projection db players-data coefs c/*draftking*)
         ]
+    (pp/pprint
+      (let [winner-team (map #(list (:Name %) (:linear-projection %))
+                             (filter #(contains? #{"Jrue Holiday" "Khris Middleton" "Giannis Antetokounmpo" "Serge Ibaka"
+                                                   "Marcin Gortat" "Norris Cole" "Jabari Parker" "Bradley Beal"}
+                                                 (:Name %)) players-proj))]
+        (pp/pprint winner-team)
+        (println (str "forecast: " (reduce + (map second winner-team))))))
     (data/save-solutions
       (coinmp/lpsolve-solve-draftkings players-proj  :linear-projection)
       c/*draftking*)
@@ -134,10 +141,42 @@
         players-proj (rtree/predict-players db players-data c/*draftking*)
         players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)
         ]
+    (pp/pprint
+      (let [winner-team (map #(list (:Name %) (:rtree-projection %))
+                             (filter #(contains? #{"Jrue Holiday" "Khris Middleton" "Giannis Antetokounmpo" "Serge Ibaka"
+                                                   "Marcin Gortat" "Norris Cole" "Jabari Parker" "Bradley Beal"}
+                             (:Name %)) players-proj))]
+        (pp/pprint winner-team)
+        (println (str "forecast: " (reduce + (map second winner-team))))))
     (data/save-solutions
       (coinmp/lpsolve-solve-draftkings players-proj  :rtree-projection)
-      c/*draftking*)))
+      c/*draftking*)
+    ))
 
+
+(defn- optimize-nhl-draftkings-rtree
+  []
+  (let [db (utils/get-db)
+        players-data (data/filter-suckers db
+                                          (data/remove-injured
+                                            (data/init-players-data-draftking2)))
+        player-names (map :Name players-data)
+        o (rtree/create-model db c/*draftking* player-names)
+        coefs (linear/create-model db c/*draftking* player-names)
+        players-proj (rtree/predict-players db players-data c/*draftking*)
+        players-proj (linear/add-linear-projection db players-proj coefs c/*draftking*)
+        ]
+    (pp/pprint
+      (let [winner-team (map #(list (:Name %) (:rtree-projection %))
+                             (filter #(contains? #{"Jrue Holiday" "Khris Middleton" "Giannis Antetokounmpo" "Serge Ibaka"
+                                                   "Marcin Gortat" "Norris Cole" "Jabari Parker" "Bradley Beal"}
+                                                 (:Name %)) players-proj))]
+        (pp/pprint winner-team)
+        (println (str "forecast: " (reduce + (map second winner-team))))))
+    (data/save-solutions
+      (coinmp/lpsolve-solve-draftkings players-proj  :rtree-projection)
+      c/*draftking*)
+    ))
 
 (defn- optimize-draftking-lineups-avg
   []

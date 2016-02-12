@@ -63,47 +63,58 @@
        (not (= 0 fd-salary))
        ))
 
+(defn map-events
+  [stats-data]
+  (map (fn [[event-id {:keys [data]}]]
+         (let [{:keys [player fantasy_points stats schedule team_id game_stat_mappings]} data
+               {:keys [collection]} fantasy_points
+               team_id (read-string team_id)
+               home-team-id (-> schedule :data :team_home :data :id)
+               dk-stats (first (filter #(= *rotogrind-draftking-id* (-> % second :data :site_id)) collection))
+               dk-fpts (-> dk-stats second :data :value)
+               fd-stats (first (filter #(= *rotogrind-fanduel-id* (-> % second :data :site_id)) collection))
+               fd-fpts (-> fd-stats second :data :value)
+               [game-date game-time] (string/split (-> schedule :data :time) #" ")
+               is-home? (= team_id home-team-id)
+               fd-salary (-> (filter #(= *rotogrind-fanduel-id* (-> % :data :site_id))
+                                     (-> schedule :data :salaries :collection))
+                             first :data :salary utils/nil->zero)
+               dk-salary (-> (filter #(= *rotogrind-draftking-id* (-> % :data :site_id))
+                                     (-> schedule :data :salaries :collection))
+                             first :data :salary utils/nil->zero)
+               home-team (-> schedule :data :team_home :data :hashtag)
+               away-team (-> schedule :data :team_away :data :hashtag)]
+           {:event-id event-id
+            :draftking-fpts dk-fpts
+            :fanduel-fpts fd-fpts
+            :game-timestamp (-> schedule :data :time)
+            :game-date game-date
+            :game-epoch (.getTime (.parse (SimpleDateFormat. "MM/dd/yy") game-date))
+            :team team_id
+            :mins (:min game_stat_mappings)
+            :home-game is-home?
+            :team-name (if is-home? home-team away-team)
+            :opp-name (if is-home? away-team home-team)
+            :fd-salary fd-salary
+            :dk-salary dk-salary
+            }))
+       stats-data))
+
 (defn ingest-player-info
   [db {:keys [rotogrinder-id Name]}]
   (let [url (str "https://rotogrinders.com/players/" rotogrinder-id "/stats?range=this-season")
         ret (utils/fetch-url url)
         stats-data (json/read-str (-> ret first :content first :content first) :key-fn keyword)]
     (scrap/add-data-to-player db Name :rotogrinder-events
-                        (filter verify-data
-                          (map (fn [[event-id {:keys [data]}]]
-                                 (let [{:keys [player fantasy_points stats schedule team_id game_stat_mappings]} data
-                                       {:keys [collection]} fantasy_points
-                                       team_id (read-string team_id)
-                                       home-team-id (-> schedule :data :team_home :data :id)
-                                       dk-stats (first (filter #(= *rotogrind-draftking-id* (-> % second :data :site_id)) collection))
-                                       dk-fpts (-> dk-stats second :data :value)
-                                       fd-stats (first (filter #(= *rotogrind-fanduel-id* (-> % second :data :site_id)) collection))
-                                       fd-fpts (-> fd-stats second :data :value)
-                                       [game-date game-time] (string/split (-> schedule :data :time) #" ")
-                                       is-home? (= team_id home-team-id)
-                                       fd-salary (-> (filter #(= *rotogrind-fanduel-id* (-> % :data :site_id))
-                                                             (-> schedule :data :salaries :collection))
-                                                     first :data :salary utils/nil->zero)
-                                       dk-salary (-> (filter #(= *rotogrind-draftking-id* (-> % :data :site_id))
-                                                             (-> schedule :data :salaries :collection))
-                                                     first :data :salary utils/nil->zero)
-                                       home-team (-> schedule :data :team_home :data :hashtag)
-                                       away-team (-> schedule :data :team_away :data :hashtag)]
-                                   {:event-id event-id
-                                    :draftking-fpts dk-fpts
-                                    :fanduel-fpts fd-fpts
-                                    :game-timestamp (-> schedule :data :time)
-                                    :game-date game-date
-                                    :game-epoch (.getTime (.parse (SimpleDateFormat. "MM/dd/yy") game-date))
-                                    :team team_id
-                                    :mins (:min game_stat_mappings)
-                                    :home-game is-home?
-                                    :team-name (if is-home? home-team away-team)
-                                    :opp-name (if is-home? away-team home-team)
-                                    :fd-salary fd-salary
-                                    :dk-salary dk-salary
-                                    }))
-                               stats-data)))))
+                        (filter verify-data (map-events stats-data)))))
+
+(defn get-date-info
+  [rotogrinder-id game-date-str]
+  (let [ret (utils/fetch-url (str "https://rotogrinders.com/players/" rotogrinder-id "/stats?range=this-season"))
+        stats-data (json/read-str (-> ret first :content first :content first) :key-fn keyword)]
+                              (filter (fn [ev]
+                                        ;(println (str "Event: " (:game-date ev) " -> " (:fanduel-fpts ev)))
+                                        (= game-date-str (:game-date ev))) (map-events stats-data))))
 
 (defn get-rotogrinder-data
   [db force-update]
@@ -147,4 +158,5 @@
                                                      *rotogrind-draftking-id*
                                                      *rotogrind-fanduel-id*) )))))
          players-data))
+
 

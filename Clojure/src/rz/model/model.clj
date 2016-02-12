@@ -77,7 +77,7 @@
      }))
 
 (defn- data-from-events-espn
-  [{:keys [Name Position espn-data] :as db-player} event-current events contest-provider]
+  [{:keys [Name Position espn-data teamAbbrev Team] :as db-player} event-current events contest-provider]
   (let [ftps-keyword (get-point-function contest-provider)
         event-last (last events)
         home-events (filter #(= true (:home-game %)) events)
@@ -104,6 +104,7 @@
      :last-away-event-mins (utils/nil->zero2 (:mins last-away-event))
      :last-away-event-pts (utils/nil->zero (ftps-keyword last-away-event))
 
+     :non-zero-events (filter-zero events)
      :avg-last-games avg-last-games
      :avg-last-home-games avg-last-home-games
      :avg-last-away-games avg-last-away-games
@@ -121,15 +122,17 @@
      :F (utils/bool->int (or (= "PF" Position) (= "SF" Position)))
      :C (utils/bool->int (= "C" Position))
 
-     ;:home-events home-events
-     ;:away-events away-events
+     :home-events home-events
+     :away-events away-events
+     :home-scores home-scores
+     :away-scores away-scores
      :all-scores (if (or (empty? all-scores)
                          (< (count all-scores) 2))
                    [0 0 0 0]
                    all-scores)
 
-     :team-name (:team-name event-current)
-     :opp-name (:opp-name event-current)
+     :team-name (or teamAbbrev Team)
+     :opp-name (:opp-team event-current)
 
      :is_win (if (= "W" (:match-status event-current)) 1 0)
 
@@ -168,12 +171,14 @@
 
 
 (defn predict-data-from-events
-  [{:keys [Salary IsHome]} db-player contest-provider
+  [{:keys [Salary IsHome opp-team] :as pinfo} db-player contest-provider
    & {:keys [database] :or {database :rotogrinder}}]
   (let [sorted-events (get-events-from-player db-player database)]
+    ;(pp/pprint pinfo)
     (data-from-events db-player
                     {:home-game IsHome
                      :Salary Salary
+                     :opp-team opp-team
                      (get-point-function contest-provider) "-1"}
                     sorted-events
                     contest-provider

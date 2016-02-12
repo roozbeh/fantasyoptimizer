@@ -9,12 +9,13 @@
             [monger.collection :as mc]
             [monger.operators :refer :all]
             [incanter.stats :refer :all]
-            [rz.optimizers.utils :as utils]))
+            [rz.optimizers.utils :as utils]
+            [clojure.string :as string]))
 
-(def players-csv-fd "../data/fd_nba_feb_10.csv")
+(def players-csv-fd "../data/fd_nba_feb_11.csv")
 ;(def players-csv-dk "../data/dk_nba_jan_30.csv")
 
-(def lineup-csv-dk "../data/dk_nba_linup_feb_10.csv")
+(def lineup-csv-dk "../data/dk_nba_linup_feb_11.csv")
 
 ;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
 
@@ -59,6 +60,8 @@
                NameID ((keyword "Name + ID") p)
                Salary ((keyword " Salary") p)
                TeamAbbrev ((keyword "TeamAbbrev ") p)
+               IsHome (if (and (some? GameInfo) (some? TeamAbbrev))
+                        (some? (re-find (re-pattern (str "@" TeamAbbrev)) GameInfo)))
                ]
            (dissoc
            (assoc p
@@ -68,8 +71,10 @@
                   :Salary (read-string Salary)
                   :ID (read-string ID)
                   :TeamAbbrev TeamAbbrev
-                  :IsHome (if (and (some? GameInfo) (some? TeamAbbrev))
-                            (some? (re-find (re-pattern (str "@" TeamAbbrev)) GameInfo))))
+                  :opp-team (if IsHome
+                              (first (string/split GameInfo #"@"))
+                              (first (string/split (second (string/split GameInfo #"@")) #" ")))
+                  :IsHome IsHome)
            (keyword " Salary") (keyword " ID") :PF :SF :SG :UTIL :F :C :G :PG (keyword " Name")
            (keyword "") (keyword "Name + ID") (keyword "TeamAbbrev ")
            )))
@@ -264,9 +269,10 @@
   (filter (fn [{:keys [Name]}]
             (let [db-player (mc/find-one-as-map db c/*collection* {:Name Name})
                   events (sort-by :game-epoch (:events (:espn-data db-player)))
-                  last-point (:points (last events))
-                  before-last-point (:points (last (butlast events)))
-                  before2-last-point (:points (last (butlast (butlast events))))]
+                  last-point (get (last events) :points 0)
+                  before-last-point (get (last (butlast events)) :points 0)
+                  before2-last-point (get (last (butlast (butlast events))) :points 0)]
+              ;(println (str Name " 1:" last-point " 2:" before-last-point " 3:" before2-last-point))
               (if (or (and (= 0 last-point) (<= before-last-point 4) (= 0 before2-last-point))
                       (and (= 0 last-point) (= before-last-point 0)))
                 (do (println (str "Sucker: " Name))
