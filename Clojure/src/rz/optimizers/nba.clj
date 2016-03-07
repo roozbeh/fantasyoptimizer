@@ -1,4 +1,4 @@
-(ns rz.optimizers.coinmp
+(ns rz.optimizers.nba
   (:require [clojure.pprint :as pp]
             [clojure.string :as string]
             [clojure.java.shell :as shell]
@@ -12,12 +12,7 @@
 
 
 (def ^:dynamic *mps-file*  "../fantasy.mps")
-(def ^:dynamic *coinmp-clp-binary* "../Solver/CoinMP-1.8.3/Clp/src/clp")
-(def ^:dynamic *solution-file* "solution.simplex")
-
 (def ^:dynamic *lpsolve-binary*  "../Solver/lp_solve/lp_solve")
-
-
 
 (defn- write-meta-data
   [w]
@@ -156,18 +151,6 @@
       (write-bounds w N)
       (.write w (str "ENDATA                                                       \n")))))
 
-;(defn coinmp-solve
-;  []
-;  (create-mps-file)
-;  (shell/sh *coinmp-clp-binary* *mps-file* "-primals" "-solution" *solution-file*)
-;  (let [out (slurp *solution-file*)]
-;    (pp/pprint out)
-;    (let [variables (filter (fn [l] (re-find #"  [0-9]+ " l)) (string/split-lines out))
-;          indexes (map #(read-string (second (re-matches #"[ ]*([0-9]+).*" %))) variables)
-;          team (map #(nth players-data %) indexes)]
-;      (utils/print-team2 team))))
-
-
 (defn lpsolve-solve-multiple
   [max-salary players-data solution-count context-provider proj-keyword]
   (loop [solutions {}
@@ -175,6 +158,7 @@
     (if (>= count solution-count)
       solutions
       (do
+        (println (str "Solve for solution: #" count))
         (create-mps-file players-data max-salary solutions context-provider proj-keyword)
         (let [{:keys [out]} (shell/sh *lpsolve-binary* "-mps" *mps-file*)
               variables (filter (fn [l] (re-find #"X[0-9][0-9][0-9][0-9][ ]+1" l)) (string/split-lines out))
@@ -185,25 +169,14 @@
 
 (defn print-solutions
   [solutions players-data]
-  (doall
-    (for [[row variables] solutions]
-      (let [indexes (map #(Integer/parseInt (second (re-matches #"X([0-9]+)" %))) variables)
-            team (map #(nth players-data %) indexes)]
-        (println row)
-        (report/print-team2 team)
-        (map #(list (:Position %) (:NameID %)) team)))))
-
-;(defn lpsolve-solve
-;  [max-salary players-data]
-;    (create-mps-file players-data max-salary {})
-;    (let [{:keys [out]} (shell/sh *lpsolve-binary* "-mps" *mps-file*)]
-;      (let [variables (filter (fn [l] (re-find #"X[0-9][0-9][0-9][0-9][ ]+1" l)) (string/split-lines out))
-;            indexes (map #(Integer/parseInt (second (re-matches #"X([0-9]+)[ ]*1" %))) variables)
-;            team (map #(nth players-data %) indexes)]
-;        (utils/print-team2 team)
-;        )
-;      ))
-;
+  (let [db (utils/get-db)]
+    (doall
+      (for [[row variables] solutions]
+        (let [indexes (map #(Integer/parseInt (second (re-matches #"X([0-9]+)" %))) variables)
+              team (map #(nth players-data %) indexes)]
+          (println row)
+          (report/print-team2 db team)
+          (map #(list (:Position %) (:NameID %)) team))))))
 
 (defn lpsolve-solve-draftkings
   [player-with-proj proj-keyword]
@@ -212,9 +185,6 @@
     ;(data/add-rotowires-projection player-with-proj c/*draftking*)
     player-with-proj
     ))
-
-
-
 
 (defn lpsolve-solve-fanduel
   [player-with-proj proj-keyword]

@@ -12,17 +12,17 @@
             [rz.optimizers.utils :as utils]
             [clojure.string :as string]))
 
-(def players-csv-fd "../data/fd_nba_feb_11.csv")
-;(def players-csv-dk "../data/dk_nba_jan_30.csv")
+;(def players-csv-fd "../data/fd_nba_feb_11.csv")
+;(def lineup-csv-dk "../data/dk_nba_linup_feb_11.csv")
 
-(def lineup-csv-dk "../data/dk_nba_linup_feb_11.csv")
+;(def players-csv-fd "../data/fd_nba_feb_18.csv")
+;(def lineup-csv-dk "../data/dk_nba_linup_feb_18.csv")
 
-;(def players-csv "../data/FanDuel-NBA-2016-01-23-14499-players-list.csv")
+(def players-csv-fd "../data/fd_nba_mar_6.csv")
+(def lineup-csv-dk "../data/dk_nba_linup_mar_6_3.csv")
 
-;(def projections-csv "projections.csv")
-;(read-json-data "src/server/fantasy_players.csv")
-;(util/read-csv-with-reader players-csv)
 
+(def ^:dynamic *projections-csv* "../projections.csv")
 
 (defn- fix-pdata-keywords-fanduel
   [pdatas]
@@ -80,19 +80,22 @@
            )))
        pdatas))
 
-(defn- load-csv-data
-  [csv-name]
-  (let [data (with-open [in-file (io/reader csv-name)]
-               (doall
-                 (csv/read-csv in-file)))
-        header (first data)
+(defn read-csv
+  [csv-filename]
+  (with-open [in-file (io/reader csv-filename)]
+    (doall
+      (csv/read-csv in-file))))
+
+(defn load-csv-data
+  [data]
+  (let [header (first data)
         label-rec (fn [r] (zipmap (map keyword header) r))]
       (map label-rec (rest data))))
 
 
 (defn init-players-data-fanduel
   []
-  (fix-pdata-keywords-fanduel (load-csv-data players-csv-fd)))
+  (fix-pdata-keywords-fanduel (load-csv-data (read-csv players-csv-fd))))
 
 ;(defn init-players-data-draftking
 ;  []
@@ -100,7 +103,18 @@
 
 (defn init-players-data-draftking2
   []
-  (fix-pdata-keywords-draftking2 (load-csv-data lineup-csv-dk)))
+  (let [file-content  (slurp lineup-csv-dk)
+        lines (string/split-lines file-content)
+        header1 (first lines)
+        header2 (-> lines rest rest rest rest rest rest rest first)
+        body (-> lines rest rest rest rest rest rest rest rest)
+        header1-poses (butlast (string/split header1 #","))
+        h2 (string/split header2 #",")
+        header2-features (take-last (- (count h2) (count header1-poses)) h2)]
+    (spit "t.csv" (string/join "\n"
+                               (concat [(str (string/join "," (concat  header1-poses header2-features)))]
+                                       body))))
+  (fix-pdata-keywords-draftking2 (load-csv-data (read-csv "t.csv"))))
 
 (defn remove-injured
   [players-data]
@@ -109,13 +123,20 @@
               (let [fd-p (filter #(= (:Name %) (:Name p)) fd-data)]
                 (if (empty? fd-p)
                   (do
-                    (println (str "Warning: no injury data available for " (:Name p)))
+                    ;(println (str "WARNING: no injury data available for " (:Name p)))
                     true)
                   (do
                     (if (= "O" (:injury (first fd-p)))
                       (println "Removing injured player: " (:Name p)))
                     (not (= "O" (:injury (first fd-p))))))))
             players-data)))
+
+(defn filter-unknown
+  [db players-data]
+  (filter (fn [{:keys [Name]}]
+            (let [db-player (mc/find-one-as-map db c/*collection* {:Name Name})]
+              (not-empty (:rotogrinder-events db-player))))
+          players-data))
 
 ;(defn init-players-data
 ;  []
@@ -153,7 +174,7 @@
   (let [rotowires-data (proj/get-rotowires-projections contest-provider)]
     (map (fn [p]
            (let [projection (filter (fn [pd] (re-find (re-pattern  (str (:Name p) ".*"))
-                                                      (:title pd)))  rotowires-data)]
+                                                      (:name pd)))  rotowires-data)]
              (if (empty? projection)
                 p
                 (do
@@ -212,7 +233,15 @@
                               (choose-player-for-pos "SF" players)
                               (choose-player-for-pos "PG" players)
                               (choose-player-for-pos "SG" players)
-                              (choose-player-for-pos "C" players)))))))
+                              (choose-player-for-pos "C" players)
+
+                              (choose-player-for-pos "RW" players)
+                              (choose-player-for-pos "LW" players)
+                              (choose-player-for-pos "D" players)
+                              )
+          (= pos "W")  (or (choose-player-for-pos "RW" players)
+                           (choose-player-for-pos "LW" players))
+          )))))
 
 (defn convert-solution
   [header-array solution]
@@ -227,11 +256,17 @@
                (filter #(not (= (second %) (second p))) players)
                (conj result (str (second p))))))))
 
+(defn get-solution-header
+  []
+  (cond
+    (c/nba?) ["PG","SG","SF","PF","C","G","F","UTIL"]
+    (c/nhl?) ["C","C","W","W","W","D","D","G","UTIL"]))
+
 (defn save-solutions
   [solutions contest-provider]
   (let [date-str (.format (java.text.SimpleDateFormat. "MM_dd_yyyy_hh_mm")  (java.util.Date.))
         filename (str "../data/solutions_" contest-provider "_" date-str ".csv")
-        header-array ["PG","SG","SF","PF","C","G","F","UTIL"]
+        header-array (get-solution-header)
         solutions-array (map (partial convert-solution header-array) solutions)
         ]
     (with-open [out-file (io/writer filename)]
@@ -243,12 +278,16 @@
 (defn save-projections
   [db players-proj]
   (let [date-str (.format (java.text.SimpleDateFormat. "MMddyyyy")  (java.util.Date.))]
-    (mc/remove db c/*collection* {:type :projections :date date-str})
+    (mc/remove db c/*collection* {:type :projections :date date-str :sport c/*active-sport*})
     (mc/insert db c/*collection*
-               {:type :projections
-                :date date-str
+               {:type :projections :date date-str :sport c/*active-sport*
                 :proj players-proj})
     (println (str "projection updated for: " date-str))))
+
+(defn load-projections
+  [db date-str]
+  (mc/find-one-as-map  db c/*collection*
+             {:type :projections :date date-str :sport c/*active-sport*}))
 
 (defn save-actual
   [db player-names date-str]
@@ -263,6 +302,19 @@
                                    (filter #(= date-str (:game-date %))
                                            rotogrinder-events)))])
                        (mc/find-maps db c/*collection* {:Name {$in player-names}}))}))
+
+(defn filter-roto-suckers
+  [players-data]
+  (let [roto-proj (add-rotowires-projection players-data c/*draftking*)]
+    (filter
+      (fn [p]
+        (if (or (= 0 (get p :roto-wire-projection 0))
+                (>= 0.5 (get p :roto-wire-projection 0)))
+          (do
+            (println (str "Rotowire Sucker detected: " (:Name p)))
+            false)
+          true))
+      roto-proj)))
 
 (defn filter-suckers
   [db players-data]
@@ -279,3 +331,46 @@
                     false)
                 true)))
           players-data))
+
+(defn dump-projs
+  [projections]
+  (println (str "Saving projections for further analysis: " *projections-csv*))
+  (spit *projections-csv*
+        (string/join "\n"
+                     (concat
+                       [(string/join "," (keys (first projections)))]
+                       (map #(string/join "," (vals %)) projections)))))
+
+(defn parse-lineup
+  [lineup-str]
+  (let [parts (string/split lineup-str #" ")]
+    (loop [parts parts
+           result {}]
+      (if (or (empty? parts) (< (count parts) 3))
+        result
+        (do
+          (let [name-parts (cond
+                              (= 3 (count parts)) 3
+                              (= 4 (count parts)) 4
+                              (contains? #{"C" "PF" "PG" "SF" "SG" "UTIL" "G" "F"} (nth parts 3)) 3
+                              (contains? #{"C" "PF" "PG" "SF" "SG" "UTIL" "G" "F"} (nth parts 4)) 4)]
+            (recur (take-last (- (count parts) name-parts) parts)
+                   (assoc result (keyword (first parts))
+                                 (string/join " " (rest (take name-parts parts)))))))))))
+
+(defn read-contest-data
+  [filename]
+  (let [contest-data (read-csv filename)
+        contest-data  (load-csv-data contest-data)]
+      (map (fn [{:keys [Lineup] :as uinfo}]
+             (assoc uinfo :lineup (parse-lineup Lineup)))
+           contest-data)))
+
+(defn analyze-contest-data
+  [filename]
+  (let [contest-data (read-contest-data filename)
+        all-players (flatten (map vals (map :lineup contest-data)))
+        player-count (reduce (fn [m x] (assoc m x (inc (m x 0)))) {} all-players)]
+    (sort-by second player-count)
+    )
+  )

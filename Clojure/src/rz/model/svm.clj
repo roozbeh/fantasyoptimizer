@@ -23,72 +23,6 @@
 (def ^:dynamic *svm-scale-bin*  "../Regression/libsvm/svm-scale")
 
 
-(def wins
-  {
-   "ATL" 27
-   "BKN" 12
-   "BOS" 26
-   "CHA" 22
-   "CHI" 25
-   "CLE" 32
-   "DAL" 26
-   "DEN" 17
-   "DET" 25
-   "GSW" 42
-   "HOU" 25
-   "IND" 23
-   "LAC" 30
-   "LAL" 9
-   "MEM" 26
-   "MIA" 25
-   "MIL" 20
-   "MIN" 14
-   "NOP" 16
-   "NYK" 22
-   "OKC" 35
-   "ORL" 20
-   "PHI" 7
-   "PHO" 14
-   "POR" 21
-   "SAC" 20
-   "SAS" 39
-   "TBL" 30
-   "UTA" 20
-   "WAS" 20
-   })
-
-(def loss {
-           "ATL" 20
-           "BKN" 34
-           "BOS" 21
-           "CHA" 24
-           "CHI" 19
-           "CLE" 12
-           "DAL" 22
-           "DEN" 29
-           "DET" 21
-           "GSW" 4
-           "HOU" 23
-           "IND" 22
-           "LAC" 16
-           "LAL" 38
-           "MEM" 20
-           "MIA" 21
-           "MIL" 27
-           "MIN" 33
-           "NOP" 28
-           "NYK" 25
-           "OKC" 13
-           "ORL" 24
-           "PHI" 40
-           "PHO" 33
-           "POR" 26
-           "SAC" 25
-           "SAS" 7
-           "TBL" 15
-           "UTA" 25
-           "WAS" 23
-           })
 
 (defn create-array-for-regression
   [data ftps-keyword]
@@ -98,29 +32,65 @@
                     current-home event-cnt  home-events away-events
                     team-name opp-name last-salary cur-salary avg-salary
                     all-events all-scores season-salary experience C is-top Name
-                    last-event-points
+                    last-event-points C G F home-scores away-scores non-zero-events
                     ] :as d}]
          (if (= :espn c/*active-database*)
             [;espn
-             last-event-mins                                 ;OK 2.062967785287917E-4
-             season-salary                                   ;OK 4.266601842450868E-5
-             avg-last-home-games                             ;OK 2.6898705485223218E-11
-             avg-last-away-games                             ;OK 7.215051357323254E-5
-             last-event-pts
-             (nth (reverse all-scores) 1)                    ;~ 0.08884594435811466
-             is-top                                          ;BAD 0.3040758717420722
-             avg-last-games                                  ;BAD 0.9926613836842875
-             last-event-points                               ;BAD 0.13423766210192656
-             ;(utils/bool->int current-home)
-             ;last-home-event-mins
-             ;experience                                      ;BAD 0.3321079046177915
-             ;last-home-event-pts
-             ;last-home-event-mins
-             ;last-away-event-pts
-             ;last-away-event-mins
-             ;
-             ;C                                               ;OK 0.007628189945130481
+             ;last-event-mins                                 ;OK 2.062967785287917E-4
+             ;season-salary                                   ;OK 4.266601842450868E-5
+             ;avg-last-home-games                             ;OK 2.6898705485223218E-11
+             ;avg-last-away-games                             ;OK 7.215051357323254E-5
+             ;last-event-pts
+             ;(nth (reverse all-scores) 1)                    ;~ 0.08884594435811466
+             ;is-top                                          ;BAD 0.3040758717420722
+             ;avg-last-games                                  ;BAD 0.9926613836842875
+             ;last-event-points                               ;BAD 0.13423766210192656
 
+             last-event-mins                                 ;0
+             avg-last-home-games                             ;1
+             avg-last-away-games                             ;2
+             season-salary                                   ;3
+             C                                               ;4
+             G                                               ;5
+             F                                               ;6
+             (nth (reverse all-scores) 0)                    ;7
+             (nth (reverse all-scores) 1)                    ;8
+             last-event-points                               ;9
+             (utils/bool->int current-home)                  ;10
+             avg-last-games                                  ;14.8
+             is-top                                          ;4.0
+             last-event-pts                                  ;8.7
+             experience                                      ;4.3
+             ;team-name
+             ;opp-name
+             ;(:opp-team (nth (reverse home-events) 0))
+             (nth (reverse home-scores) 0)
+             (:mins (nth (reverse home-events) 0))
+             ;(:opp-team (nth (reverse home-events) 1))
+             (nth (reverse home-scores) 1)
+             (:mins (nth (reverse home-events) 1))
+             ;(:opp-team (nth (reverse home-events) 2))
+             (nth (reverse home-scores) 2)
+             (:mins (nth (reverse home-events) 1))
+             ;(:opp-team (nth (reverse away-events) 0))
+             (nth (reverse away-scores) 0)
+             (:mins (nth (reverse away-events) 1))
+             ;(:opp-team (nth (reverse away-events) 1))
+             (nth (reverse away-scores) 1)
+             (:mins (nth (reverse away-events) 1))
+             ;(:opp-team (nth (reverse away-events) 2))
+             (nth (reverse away-scores) 2)
+             (:mins (nth (reverse away-events) 2))
+             ;(:opp-team (nth (reverse away-events) 2))
+
+             (nth (reverse away-scores) 2)
+             (:points (last non-zero-events))
+             (:rebounds (last non-zero-events))
+             (:assists (last non-zero-events))
+             (:steals (last non-zero-events))
+             (:blocks (last non-zero-events))
+             (:turnover (last non-zero-events))
+             (:three-PM (last non-zero-events))
 
              (utils/nil->zero pts-current)]
             [;rotogrinder

@@ -3,6 +3,7 @@
             [monger.collection :as mc]
             [monger.operators :refer :all]
             [rz.optimizers.utils :as utils]
+            [incanter.stats :refer :all]
             [clojure.pprint :as pp]))
 
 
@@ -21,7 +22,7 @@
 
 
 (defn- data-from-events-rotogrinder
-  [{:keys [Name Position]} event-current events contest-provider]
+  [{:keys [Name Position teamAbbrev Team TeamAbbrev]} event-current events contest-provider]
   (let [ftps-keyword (get-point-function contest-provider)
         salary-keyword (get-salary-function contest-provider)
         event-last (last events)
@@ -59,12 +60,14 @@
      :current-home (get event-current :home-game -1)
      :event-cnt (count events)
 
-     ;:home-events home-events
-     ;:away-events away-events
-     ;:all-events events
+     :home-events home-events
+     :away-events away-events
+     :home-scores home-scores
+     :away-scores away-scores
+     :all-events events
 
-     :team-name (:team-name event-current)
-     :opp-name (:opp-name event-current)
+     :team-name (or teamAbbrev Team TeamAbbrev)
+     :opp-name (:opp-team event-current)
 
      ;label -> only for train
      :pts-current (get event-current ftps-keyword -1)
@@ -74,10 +77,16 @@
                     (:Salary event-current)
                     (salary-keyword event-current))
      :avg-salary (utils/array->mean (map salary-keyword events))
+
+     :pos Position
+     :all-scores (if (or (empty? all-scores)
+                        (< (count all-scores) 2))
+                  [0 0 0 0]
+                  all-scores)
      }))
 
 (defn- data-from-events-espn
-  [{:keys [Name Position espn-data teamAbbrev Team] :as db-player} event-current events contest-provider]
+  [{:keys [Name Position espn-data teamAbbrev Team TeamAbbrev] :as db-player} event-current events contest-provider]
   (let [ftps-keyword (get-point-function contest-provider)
         event-last (last events)
         home-events (filter #(= true (:home-game %)) events)
@@ -131,7 +140,7 @@
                    [0 0 0 0]
                    all-scores)
 
-     :team-name (or teamAbbrev Team)
+     :team-name (or teamAbbrev Team TeamAbbrev)
      :opp-name (:opp-team event-current)
 
      :is_win (if (= "W" (:match-status event-current)) 1 0)
@@ -187,7 +196,7 @@
 (defn load-players
   [db player-names]
   (if (nil? player-names)
-    (mc/find-maps db c/*collection* {:rotogrinder-events { $exists true $not {$size 0} } })
+    (mc/find-maps db c/*collection* { })
     (mc/find-maps db c/*collection* {:Name {$in player-names}})))
 
 (defn- prepare-data-for-regression-recursive
@@ -242,3 +251,31 @@
    (prepare-data db contest-provider nil {})))
 
 
+(defn rank-players
+  [players-proj sort-kwd]
+  (let [positions (set (map :Position players-proj))
+        rank-array (fn [input-data sort-kwd]
+                     (loop [data (sort-by sort-kwd input-data)
+                            index 1
+                            results []]
+                       (if (empty? data)
+                         results
+                         (recur (rest data) (inc index) (conj results (assoc (first data) :rank index))))))]
+    (loop [positions positions
+           results []]
+      (if (empty? positions)
+        results
+        (let [array (filter #(= (:Position %) (first positions)) players-proj)]
+          (recur (rest positions) (concat results (rank-array array sort-kwd))))))))
+
+(defn add-max-last-score
+  [db players-proj contest-provider]
+  (map (fn [{:keys [Name] :as pinfo} ]
+         (let [db-player (mc/find-one-as-map db c/*collection* {:Name Name})
+               events (get-events-from-player db-player c/*active-database*)
+               last-events (take-last c/*average-games-count* events)
+               ftps-keyword (get-point-function contest-provider)
+               scores (map ftps-keyword last-events)]
+           (assoc pinfo :max-score (apply max scores)
+                        :one-sigma (+ (mean scores) (* 3 (sd scores))))))
+       players-proj))

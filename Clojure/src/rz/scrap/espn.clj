@@ -13,7 +13,7 @@
 
 (defn get-teams
   []
-  (let [ret (utils/fetch-url "http://espn.go.com/nba/teams")]
+  (let [ret (utils/fetch-url (str "http://espn.go.com/" c/*active-sport* "/teams"))]
     (map (fn [{:keys [content attrs]}]
            (let [{:keys [href]} attrs
                  url-parts (string/split href #"/")
@@ -22,12 +22,12 @@
               :TeamName content
               :team-url href
               :team-id team-id
-              :roster-url (str "http://espn.go.com/nba/team/roster/_/name/" team-id)
+              :roster-url (str "http://espn.go.com/" c/*active-sport* "/team/roster/_/name/" team-id)
             })
            )
          (html/select ret [:body :.bi]))))
 
-(defn get-players
+(defn get-nba-players
   []
   (flatten
     (map (fn [{:keys [roster-url] :as team-info}]
@@ -42,6 +42,21 @@
                   (map (comp first :content) (html/select ret [:body :.sortcell])))))
          (get-teams))))
 
+(defn get-nhl-players
+  []
+  (flatten
+    (map (fn [{:keys [roster-url] :as team-info}]
+           (let [ret (utils/fetch-url roster-url)]
+             (map (fn [{:keys [content attrs]}]
+                    (let [{:keys [href]} attrs
+                          url-parts (string/split href #"_")]
+                      {:Name (first content)
+                       :PlayerURL href
+                       :GameLogUrl (str (first url-parts) "gamelog/_" (second url-parts))
+                       :TeamInfo team-info}))
+                  (html/select ret [:body #{:.oddrow :.evenrow} :a]))))
+         (get-teams))))
+
 (defn add-year
   [date-str]
   (let [year (if (some? (re-find #" 1[0-9]/" date-str))
@@ -51,11 +66,11 @@
 
 (defn calc-dk-score
   [{:keys [points rebounds assists steals blocks turnover three-PM]}]
-  (let [double-cnt (utils/bool->int (or (>= points 10)
-                                        (>= rebounds 10)
-                                        (>= assists 10)
-                                        (>= blocks 10)
-                                        (>= steals 10)))
+  (let [double-cnt (+ (utils/bool->int (>= points 10))
+                      (utils/bool->int (>= rebounds 10))
+                      (utils/bool->int (>= assists 10))
+                      (utils/bool->int (>= blocks 10))
+                      (utils/bool->int (>= steals 10)))
         double-double (utils/bool->int (>= double-cnt 2))
         triple-double (utils/bool->int (>= double-cnt 3))]
     (+ points
@@ -78,13 +93,23 @@
 ;Turnover = -1pt
 (defn calc-fd-score
   [{:keys [points rebounds assists steals blocks turnover three-PM FTM]}]
-  (+ points
-     ;FTM  ;TODO: To make sure
-     (* 1.2 rebounds)
-     (* 1.5 assists)
-     (* 2 steals)
-     (* 2 blocks)
-     (- turnover)))
+  (cond
+    (c/nba?) (+ points
+                ;FTM  ;TODO: To make sure
+                (* 1.2 rebounds)
+                (* 1.5 assists)
+                (* 2 steals)
+                (* 2 blocks)
+                (- turnover))
+    (c/nhl?) (+ points
+               ;FTM  ;TODO: To make sure
+               (* 1.2 rebounds)
+               (* 1.5 assists)
+               (* 2 steals)
+               (* 2 blocks)
+               (- turnover))
+    )
+  )
 
 (defn add-score
   [espn]
@@ -127,7 +152,7 @@
     (html/select ret [:body :.tablehead #{:.oddrow :.evenrow}])
     []))
 
-(defn ingest-player
+(defn ingest-nba-player
   [{:keys [GameLogUrl PlayerURL] :as espn-player}]
   (let [game-log (fail-safe-game-log GameLogUrl PlayerURL)
         player-profile (fetch-with-retry PlayerURL)
@@ -187,6 +212,79 @@
                                (filter-2016 game-log)))
      }))
 
+;Goal = +3 PTS
+;Assist = +2 PTS
+;Shot on Goal = +0.5 PTS
+;Blocked Shot = +0.5 PTS
+;Short Handed Point Bonus (Goal/Assist) = +1 PTS
+;Shootout Goal = +0.2 PTS
+;Hat Trick Bonus = +1.5 PTS
+;
+
+(defn ingest-nhl-player
+  [{:keys [GameLogUrl PlayerURL] :as espn-player}]
+  (let [game-log (fail-safe-game-log GameLogUrl PlayerURL)
+        player-profile (fetch-with-retry PlayerURL)
+        salary-node (html/select player-profile [:body :div.mod-content :ul :li :dt :strong])
+        exp-node (-> (html/select game-log [:.player-metadata :li]) last :content second read-string)
+        leaderboard-node (html/select game-log [:.general-info :.first])
+        leaderboard-txt (if (empty? leaderboard-node)
+                          ""
+                          (-> leaderboard-node first :content first))]
+    {:ESPN-data   espn-player
+     :ingest-date (.getTime (new Date))
+     :salary (if (empty? salary-node)
+               0
+               (-> salary-node first :content first (string/replace-first #"\$" "") (string/replace #"," "") read-string))
+     :experience (if exp-node
+                   (if (number? exp-node)
+                     exp-node
+                     0)
+                   0)
+     :leaderboard-rank (if (.startsWith leaderboard-txt "#")
+                         (-> leaderboard-txt (string/replace #"#" "") read-string)
+                         100)
+     :events
+     (map (fn [l]
+            (let [DATE (-> l :content first :content first)
+                  [three-PM three-PA] (string/split (-> l :content (nth 6) :content first) #"-")
+                  [FTM FTA] (string/split (-> l :content (nth 8) :content first) #"-")
+                  game-epoch (.getTime (.parse (SimpleDateFormat. "EEE MM/dd/yyyy") (add-year DATE)))]
+              {
+               :DATE                DATE
+               :game-date           (add-year DATE)
+               :game-epoch          game-epoch
+               :day-cntr            (int (/ (- game-epoch 1443758400000) 86400000))
+               :home-game           (= "vs" (-> (html/select l [:.game-schedule :.game-location]) first :content first))
+               :opp-team            (or (-> (html/select l [:.team-name :a]) first :content first)
+                                        (-> (html/select l [:.team-name]) first :content first))
+               :match-status        (-> (html/select l [#{:.redfont :.greenfont}]) first :content first)
+               :match-result        (-> l :content (nth 2) :content last :content first)
+
+               :G               (-> l :content (nth 3) :content first utils/nil->zero)
+               :A               (-> l :content (nth 4) :content first utils/nil->zero)
+               :PTS             (-> l :content (nth 5) :content first)
+               :PlusMinus       (-> l :content (nth 6) :content first)
+               :PIM             (-> l :content (nth 7) :content first)
+               :SOG             (-> l :content (nth 8) :content first utils/nil->zero)
+               :Percent         (-> l :content (nth 9) :content first)
+               :PPG             (-> l :content (nth 10) :content first)
+               :PPA             (-> l :content (nth 11) :content first)
+               :SHG             (-> l :content (nth 12) :content first)
+               :SHA             (-> l :content (nth 13) :content first)
+               :GWG             (-> l :content (nth 14) :content first)
+               :TOI             (-> l :content (nth 15) :content first)
+               :PROD            (-> l :content (nth 16) :content first)
+               })
+            )
+          (filter #(= 17 (count (:content %)))
+                  (filter-2016 game-log)))
+     }))
+(defn ingest-player
+  [espn-player]
+  (if (= (c/nba?))
+    (ingest-nba-player espn-player)
+    (ingest-nhl-player espn-player)))
 
 (def espn-name-mapping
   {"Lou Amundson" "Louis Amundson"
@@ -217,9 +315,13 @@
 (defn create-espn-playears
   []
   (let [db (utils/get-db)
-        players (get-players)]
+        players (if (c/nba?)
+                  (get-nba-players)
+                  (get-nhl-players))]
+    (mc/remove db c/*collection* {:type :espn-data})
     (mc/insert db c/*collection* {:type :espn-data
                                   :players players})))
+
 
 (defn get-espn-players
   [db]
@@ -245,10 +347,10 @@
     (scrap/create-players db players-data)
     (println "Players updated: "
              (count
-               (map (fn [{:keys [Name] :as espn-player}]
+               (pmap (fn [{:keys [Name] :as espn-player}]
                       (let [db-player (mc/find-one-as-map db c/*collection* {:Name (map-espn-names Name)})]
                         (if (nil? db-player)
-                          (println (str "ERROR: Could not load player in database: '" (map-espn-names Name) "'"))
+                          (println (str "ERROR: Could not load player in database: '" (map-espn-names Name) "' (orig name: " Name ")"))
                           (if (or force-update
                                   (nil? (:espn-data db-player))
                                   (empty? (:events (:espn-data db-player))))
@@ -258,7 +360,7 @@
                                                         :espn-data (add-score (ingest-player espn-player))))))))
                     players)))))
 
-(defn- get-player-score
+(defn get-player-score
   [name fpts-kwd real-date]
   (let [db (utils/get-db)
         name (if-let [e-map (first (filter #(= (second %) name) espn-name-mapping))]
