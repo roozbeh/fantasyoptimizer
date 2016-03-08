@@ -9,6 +9,11 @@
 */
 #define VAR_COUNT 9
 
+int MAX_DEPTH = 10;
+int MIN_SAMPLE_CNT = 10;
+int MAX_CATEGORIES = 15;
+int MAX_NUM_OR_TREES_IN_THE_FOREST = 1000;
+
 static void help()
 {
     // printf("\nThe sample demonstrates how to train Random Trees classifier\n"
@@ -119,6 +124,8 @@ void printMat(const CvMat* mat)
     printf("\n");
 }
 
+#define OPTIONS_PRECISION_CHECK     0x0001
+#define OPTIONS_GRID_SEARCH         0x0002
 /**
  * data_filename: input CSV for training or prediction
  * filename_to_save: tree file (output for train)
@@ -126,8 +133,12 @@ void printMat(const CvMat* mat)
  * filename_to_output: prediction output
  */
 static
-int build_rtrees_classifier( char* data_filename,
-    char* filename_to_save, char* filename_to_load, char *filename_to_output )
+int build_rtrees_classifier(char* data_filename,
+                            char* filename_to_save,
+                            char* filename_to_load,
+                            char *filename_to_output,
+                            char *test_filename,
+                            int options)
 {
     // CvMat* data = 0;
     // CvMat* responses = 0;
@@ -153,10 +164,40 @@ int build_rtrees_classifier( char* data_filename,
     std::cout << "Train matrix: " << data->rows << " x " << data->cols << std::endl;
     std::cout << "Response matrix: " << responses->rows << " x " << responses->cols << std::endl;
 		
-    int nsamples_all = 0, ntrain_samples = 0;
+    int nsamples_all = 0, ntrain_samples = 0, ntest_samples = 0;
     int i = 0;
     CvRTrees forest;
     CvMat* var_importance = 0;
+
+    const CvMat* test_responses = NULL;
+    CvMat *test_data = NULL;
+    cv::Mat test_all_data_mat;
+    cv::Mat test_data1;
+    CvMat test_data2;
+    CvMLData test_cvml;
+    
+    if (options & OPTIONS_PRECISION_CHECK) {
+        if ( test_cvml.read_csv(test_filename) < 0) {
+            printf( "Could not read the database %s\n", data_filename );
+            return -1;
+        }
+        
+        const CvMat* test_all_data = test_cvml.get_values();
+        
+        test_all_data_mat = test_all_data;
+        test_data1 = test_all_data_mat.colRange(0, test_all_data->cols-1);
+        test_data2 = test_data1;
+        test_data = &test_data2;
+        
+        test_cvml.set_response_idx(test_all_data->cols-1);
+        test_responses = test_cvml.get_responses();
+        
+        ntest_samples = test_data->rows;
+
+        std::cout << "TEST matrix: " << test_data->rows << " x " << test_data->cols << std::endl;
+        std::cout << "TEST Response matrix: " << test_responses->rows << " x " << test_responses->cols << std::endl;
+    }
+
 
 
     nsamples_all = data->rows;
@@ -182,7 +223,6 @@ int build_rtrees_classifier( char* data_filename,
     }
     else
     {
-        //    ntrain_samples = (int)(nsamples_all*0.8);
         ntrain_samples = nsamples_all;
 
         // create classifier by using <data> and <responses>
@@ -206,19 +246,16 @@ int build_rtrees_classifier( char* data_filename,
         }
 
         // 3. train classifier
-        int num_features = data->cols;
-        int num_samples = data->rows;
-        
         forest.train( data, CV_ROW_SAMPLE, responses, 0, sample_idx, var_type, 0,
-            CvRTParams(10, //max_depth - def 10
-                       10, //min_sample_count - def 10
+            CvRTParams(MAX_DEPTH, //max_depth - def 10
+                       MIN_SAMPLE_CNT, //min_sample_count - def 10
                        0.0001f, //regression_accuracy
                        false, //use_surrogates
-                       15,
+                       MAX_CATEGORIES, //max_categories
                        0, //priors
                        true, //calc_var_importance
                        0, //nactive_vars - def 4
-                       1000, //max_num_of_trees_in_the_forest
+                       MAX_NUM_OR_TREES_IN_THE_FOREST, //max_num_of_trees_in_the_forest
                        0.01f, //forest_accuracy
                        CV_TERMCRIT_ITER //CV_TERMCRIT_ITER or CV_TERMCRIT_EPS or
                        ));
@@ -245,33 +282,67 @@ int build_rtrees_classifier( char* data_filename,
 		double error = predict - actual;
 
         if( i < ntrain_samples ) {
-            train_hr += fabs(error)/actual;
+            train_hr += (actual == 0) ? 0 : fabs(error)/actual;
 			train_mse += error*error;
         } else {
-            fprintf(fp, "%.3g\n",predict);
+            if (fp) fprintf(fp, "%.3g\n",predict);
             
-            test_hr += fabs(error)/actual;
+            test_hr += (actual == 0) ? 0 : fabs(error)/actual;
 			test_mse += error*error;
 
-//DEBUG            printf("predicted: %6.3g, actual: %10.2g, error: %ld\n", predict, actual, (long)(error*error));
+//            printf("predicted: %6.3g, actual: %10.2g, error: %.1g\n", predict, actual, (error*error));
 		}
     }
-
-    fclose(fp);
     
-	train_mse /= (double)ntrain_samples;
-	test_mse /= (double)(nsamples_all-ntrain_samples);
-	
-    test_hr /= (double)(nsamples_all-ntrain_samples);
-    train_hr /= (double)ntrain_samples;
-    
-    printf( "Recognition rate: train_mse = %.1f%%, test_mse = %.1f%%\n",
-           train_mse, test_hr*100. );
+    if (options & OPTIONS_PRECISION_CHECK) {
+        test_hr = 0; test_mse = 0;
+        
+        for (i=0;i<ntest_samples;i++) {
+            CvMat sample;
+            cvGetRow( test_data, &sample, i );
+            
+            double predict = forest.predict( &sample );
+            double actual = cvGet2D(test_responses,i,0).val[0];
+            double error = predict - actual;
+            
+            double error_rate = ((actual == 0) && (error == 0)) ?
+                0 :
+                fabs(error)/((actual+error)/2.0);
+            test_hr += error_rate;
+            test_mse += error*error;
+            
+//            printf("predicted: %6.3g, actual: %10.2g, error: %.1g, rate: %.1g\n", predict, actual, fabs(error), error_rate);
+        }
+    }
 
-    printf( "Number of trees: %d\n", forest.get_tree_count() );
+    if (fp) fclose(fp);
+    
 
     // only in training time, print these
     if (!filename_to_load) {
+        train_mse /= (double)ntrain_samples;
+        train_hr = 100 * train_hr / (double)ntrain_samples;
+
+        if (options & OPTIONS_PRECISION_CHECK) {
+            test_mse /= (double) ntest_samples ;
+            test_hr = 100 * test_hr / (double) ntest_samples;
+        } else {
+            test_mse /= (double)(nsamples_all-ntrain_samples);
+            test_hr = 100 * test_hr / (double)(nsamples_all-ntrain_samples);
+        }
+
+
+        printf( "Recognition rate: train_mse = %.1f, train_mape = %.1f%%\n",
+               train_mse, train_hr );
+
+        if (options & OPTIONS_PRECISION_CHECK) {
+            printf( "Recognition rate: test_mse = %.1f, test_mape = %.1f%%\n",
+                   test_mse, test_hr );
+        }
+
+        
+        printf( "Number of trees: %d\n", forest.get_tree_count() );
+        
         // Print variable importance
         var_importance = (CvMat*)forest.get_var_importance();
         if( var_importance )
@@ -815,7 +886,9 @@ int main( int argc, char *argv[] )
     char* filename_to_output = NULL;
     char default_data_filename[] = "./letter-recognition.data";
     char* data_filename = default_data_filename;
+    char* test_filename = NULL;
     int method = 0;
+    int options = 0;
 
     int i;
     for( i = 1; i < argc; i++ )
@@ -840,6 +913,11 @@ int main( int argc, char *argv[] )
             i++;
             filename_to_output = argv[i];
         }
+        else if( strcmp(argv[i],"-test") == 0) // flag "-test filename"
+        {
+            i++;
+            test_filename = argv[i];
+        }
         else if( strcmp(argv[i],"-boost") == 0)
         {
             method = 1;
@@ -849,24 +927,57 @@ int main( int argc, char *argv[] )
             method = 2;
         }
         else if ( strcmp(argv[i], "-knearest") == 0)
-    {
-        method = 3;
-    }
-    else if ( strcmp(argv[i], "-nbayes") == 0)
-    {
-        method = 4;
-    }
-    else if ( strcmp(argv[i], "-svm") == 0)
-    {
-        method = 5;
-    }
+        {
+            method = 3;
+        }
+        else if ( strcmp(argv[i], "-nbayes") == 0)
+        {
+            method = 4;
+        }
+        else if ( strcmp(argv[i], "-svm") == 0)
+        {
+            method = 5;
+        }
+        else if ( strcmp(argv[i], "-precision") == 0)
+        {
+            options |= OPTIONS_PRECISION_CHECK;
+        }
+        else if ( strcmp(argv[i], "-gridsearch") == 0)
+        {
+            options |= OPTIONS_GRID_SEARCH;
+        }
         else
             break;
     }
 
+//    MAX_DEPTH = 18;
+//    MIN_SAMPLE_CNT = 0;
+//    MAX_CATEGORIES = 2;
+//    MAX_NUM_OR_TREES_IN_THE_FOREST= 300;
+    
+    
+    if (method == 0 && (options & OPTIONS_GRID_SEARCH)) {
+        for (int i=2;i<40;i++) {
+            MAX_NUM_OR_TREES_IN_THE_FOREST = i * 50;
+            printf("\n\n\n   ******  \n");
+            printf("Testing with MAX_NUM_OR_TREES_IN_THE_FOREST = %d\n", MAX_NUM_OR_TREES_IN_THE_FOREST);
+            build_rtrees_classifier( data_filename,
+                                    filename_to_save,
+                                    filename_to_load,
+                                    filename_to_output,
+                                    test_filename,
+                                    options );
+        }
+    }
+    
     if( i < argc ||
         (method == 0 ?
-        build_rtrees_classifier( data_filename, filename_to_save, filename_to_load, filename_to_output ) :
+        build_rtrees_classifier( data_filename,
+                                filename_to_save,
+                                filename_to_load,
+                                filename_to_output,
+                                test_filename,
+                                options ) :
         method == 1 ?
         build_boost_classifier( data_filename, filename_to_save, filename_to_load ) :
         method == 2 ?

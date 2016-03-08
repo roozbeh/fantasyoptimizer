@@ -47,7 +47,7 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
       useCustomWorkingDirectory = "YES"
-      customWorkingDirectory = "/Users/roozbeh/Google Drive/Darooz/fantasyoptimizer/Regression/random_forest"
+      customWorkingDirectory = "/Users/roozbeh/Google Drive/Darooz/fantasyoptimizer/Clojure"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
@@ -64,7 +64,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-data points.csv -save points.xml"
+            argument = "-data ../rtree_train.csv -test ../rtree_test.csv -save ../rtree_model.xml -precision"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
