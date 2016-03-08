@@ -27,8 +27,6 @@
   (rotoscrap/ingest-data (data/init-players-data-draftking2)
                     :force-update true))
 
-
-
 (defn- optimize-nba-draftkings-rtree
   [prod-run & {:keys [ranking] :or {ranking true}}]
   (binding [c/*active-sport* c/*nba*
@@ -57,7 +55,6 @@
                                                       :rank
                                                       :rtree-projection))
         c/*draftking*))))
-
 
 (defn- optimize-nba-draftkings-highrisk
   [prod-run]

@@ -69,10 +69,9 @@
      ]))
 
 
-(defn show-nba
-  [req]
-  (let [db (utils/get-db)]
-    (h/html
+(defn show-nba-players-page
+  [req players]
+  (h/html
     (header)
     [:body
      (navbar "nba")
@@ -90,20 +89,91 @@
          [:th "Team"]
          [:th "Opponent Team"]
          [:th "Average FPTS"]]
-        (map-indexed (fn [idx {:keys [Name TeamAbbrev opp-team espn-data]}]
-               [:tr
-                [:td (inc idx) ]
-                [:td Name]
-                [:td TeamAbbrev]
-                [:td opp-team]
-                [:td (format "%2.2f" (double (utils/array->mean (map :draftking-fpts (:events espn-data)))))]]
-               )
-             (mc/find-maps db c/*nba* {}))
-        ]
-       ]
-      ]
-     ]))
-  )
+        (map-indexed (fn [idx {:keys [_id Name TeamAbbrev opp-team espn-data]}]
+                       [:tr
+                        [:td (inc idx) ]
+                        [:td [:a {:href (str "/nba/player/" (.toString _id))} Name]]
+                        [:td TeamAbbrev]
+                        [:td opp-team]
+                        [:td (format "%2.2f" (double (utils/array->mean (map :draftking-fpts (:events espn-data)))))]]
+                       )
+                     players
+                     )]]]]))
+(defn show-nba-all
+  [req]
+  (show-nba-players-page req
+                         (mc/find-maps (utils/get-db) c/*nba* {})))
+
+(defn show-nba-player
+  [req]
+  (let [{:keys [route-params]} req
+                {:keys [pid]} route-params]
+      (if-let [db-player (mc/find-one-as-map db c/*collection* {:_id (org.bson.types.ObjectId. pid)})]
+        (h/html
+          (header)
+          [:body
+           (navbar "nba")
+           [:div {:class "container"}
+            [:div {:class "row"}
+             [:div {:class "col-xs-6"}
+              [:h1 (:Name db-player)]]
+             [:div {:class "col-xs-6"}
+              [:img {:src (str "/nba/player/chart/" pid) :height 200}]]]
+            [:div {:class "row"}
+             [:table {:class "table"}
+              [:thead
+               [:th "#"]
+               [:th "Game Date"]
+               [:th "Match"]
+               [:th "Home Game?"]
+               [:th "minutes"]
+               [:th "FGM-FGA"]
+               [:th "REB"]
+               [:th "AST"]
+               [:th "BLK"]
+               [:th "STL"]
+               [:th "TO"]
+               [:th "PTS"]
+               [:th "FantasyPoints"]]
+              (map-indexed (fn [idx {:keys [opp-team home-game mins FGM-FGA rebounds assists blocks
+                                            steals turnover points draftking-fpts game-date]}]
+                             [:tr
+                              [:td (inc idx) ]
+                              [:td game-date]
+                              [:td opp-team]
+                              [:td (if home-game "HOME" "")]
+                              [:td mins]
+                              [:td FGM-FGA]
+                              [:td rebounds]
+                              [:td assists]
+                              [:td blocks]
+                              [:td steals]
+                              [:td turnover]
+                              [:td points]
+                              [:td draftking-fpts]]
+                             )
+                           (:events (:espn-data db-player))
+                           )]]]])
+         (h/html
+          (str "Player could not be found: " pid)))))
+
+
+(defn show-nba-player-chart
+  [req]
+  (let [{:keys [route-params]} req
+        {:keys [pid]} route-params]
+        (if-let [db-player (mc/find-one-as-map db c/*collection* {:_id (org.bson.types.ObjectId. pid)})]
+          (let [events (:events (:espn-data db-player))
+                events (sort-by :game-epoch events)
+                chart (time-series-plot (range (count events)) (map :draftking-fpts events))
+                out-stream (ByteArrayOutputStream.)
+                in-stream (do
+                            (save chart out-stream)
+                            (ByteArrayInputStream.
+                              (.toByteArray out-stream)))]
+            (-> (r/response in-stream)
+                (r/header "Content-Type" "image/png")))
+          (h/html "Player could not be found"))))
 
 (defn show-nhl
   [req]
@@ -140,112 +210,6 @@
         ]
        ]))
   )
-;(defn show-request-cnt
-;  [req]
-;  (let [req-cnt (analyze/request-counts)]
-;    (h/html
-;      [:h1 "Request count"]
-;      [:a {:href "show-request-csv"} "CSV"]
-;      [:table {:style "border-collapse: collapse; border-width: 1px; border: 1px solid black;"
-;               :border 1
-;               :width "100%¬"}
-;       [:tr
-;        [:th "Request nurl"]
-;        [:th "Request count"]
-;        [:th "Request percentage"]
-;        [:th "distribution"]]
-;
-;       (map (fn [[url cnt prcnt]]
-;              [:tr
-;               [:td {:style "text-align: center"}
-;                [:a {:href (str "/reqcnt-chart/" (url-encode url))} url]]
-;               [:td cnt]
-;               [:td (format "%2.2f" prcnt)]
-;               [:td [:img {:width 200 :src (str "/reqcnt-chart/" (url-encode url))}]]])
-;            req-cnt)])))
-;
-;(defn show-request-cnt-csv
-;  [req]
-;  (let [data (analyze/read-input-memo analyze/*log-file-name*)]
-;    (-> (r/response (string/join "\n"
-;                                 (map (fn [row] (string/join "," (vals row))) data)))
-;        (r/header "Content-Type" "text/csv"))))
-;
-;(defn show-response-time
-;  [req]
-;  (let [req-cnt (analyze/request-times)]
-;    (h/html
-;      [:h1 "Response times"]
-;      [:table {:style "border-collapse: collapse; border-width: 1px; border: 1px solid black;"
-;               :border 1
-;               :width "100%"}
-;       [:tr
-;        [:th "Request url"]
-;        [:th "Request count"]
-;        [:th "Min (ms)"]
-;        [:th "Max (ms)"]
-;        [:th "Avg (ms)"]
-;        [:th "Std Dev (ms)"]
-;        ]
-;       (map (fn [[url cnt minr maxr avgr sdr]]
-;              [:tr
-;               [:td {:style "text-align: center"}
-;                [:a {:href (str "/resptime-chart/" (url-encode url))} url]]
-;               [:td cnt]
-;               [:td minr]
-;               [:td maxr]
-;               [:td (format "%2.2f" avgr)]
-;               [:td (format "%2.2f" sdr)]
-;               [:td [:img {:width 200 :src (str "/resptime-chart/" (url-encode url))}]]
-;               ])
-;            req-cnt)])))
-;
-;(defn show-error-rates
-;  [req]
-;  (let [req-cnt (analyze/error-rates)]
-;    (h/html
-;      [:h1 "Error rates"]
-;      [:table {:style "border-collapse: collapse; border-width: 1px; border: 1px solid black;"
-;               :border 1
-;               :width "100%¬"}
-;       [:tr
-;        [:th "Request url"]
-;        [:th "Error count"]
-;        ]
-;       (map (fn [[url cnt]]
-;              [:tr
-;               [:td {:style "text-align: center"} url]
-;               [:td cnt]]
-;              )
-;            req-cnt)])))
-;
-;(defn show-request-chart
-;  [req]
-;  (let [{:keys [route-params]} req
-;        {:keys [url]} route-params
-;        chart (analyze/draw-usage-history url)
-;        out-stream (ByteArrayOutputStream.)
-;        in-stream (do
-;                    (save chart out-stream)
-;                    (ByteArrayInputStream.
-;                      (.toByteArray out-stream)))
-;        ]
-;    (-> (r/response in-stream)
-;        (r/header "Content-Type" "image/png"))))
-;
-;(defn show-resptime-chart
-;  [req]
-;  (let [{:keys [route-params]} req
-;        {:keys [url]} route-params
-;        chart (analyze/draw-resptime-history url)
-;        out-stream (ByteArrayOutputStream.)
-;        in-stream (do
-;                    (save chart out-stream)
-;                    (ByteArrayInputStream.
-;                      (.toByteArray out-stream)))
-;        ]
-;    (-> (r/response in-stream)
-;        (r/header "Content-Type" "image/png"))))
 
 (defn get-user-by-id
   [])
@@ -255,8 +219,10 @@
 
 (ccore/defroutes all-routes
                  (ccore/GET "/" [] show-landing-page)
-                 (ccore/GET "/nba" [] show-nba)
+                 (ccore/GET "/nba" [] show-nba-all)
                  (ccore/GET "/nhl" [] show-nhl)
+                 (ccore/GET "/nba/player/:pid" [pid] show-nba-player)
+                 (ccore/GET "/nba/player/chart/:pid" [pid] show-nba-player-chart)
                  ;(ccore/GET "/resptime" [] show-response-time)
                  ;(ccore/GET "/reqcnt-chart/:url" [url] show-request-chart)
                  ;(ccore/GET "/resptime-chart/:url" [url] show-resptime-chart)
