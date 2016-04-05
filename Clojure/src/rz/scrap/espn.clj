@@ -355,7 +355,7 @@
                                   (nil? (:espn-data db-player))
                                   (empty? (:events (:espn-data db-player))))
                             (do
-                              (println (str "Loading data for " Name "->" (map-espn-names Name)))
+                              ;(println (str "Loading data for " Name "->" (map-espn-names Name)))
                               (scrap/add-data-to-player db (map-espn-names Name)
                                                         :espn-data (add-score (ingest-player espn-player))))))))
                     players)))))

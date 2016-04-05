@@ -78,7 +78,7 @@
      [:div {:class "jumbotron"}
       [:div {:class "container"}
        [:p { :style "text-align: center"}
-        [:a {:class "btn btn-primary btn-lg" :href "#" :role "button"}
+        [:a {:class "btn btn-primary btn-lg" :href "/nba/lineups" :role "button"}
          "Create NBA lineups"]]]]
      [:div {:class "container"}
       [:div {:class "row"}
@@ -108,7 +108,7 @@
   [req]
   (let [{:keys [route-params]} req
                 {:keys [pid]} route-params]
-      (if-let [db-player (mc/find-one-as-map db c/*collection* {:_id (org.bson.types.ObjectId. pid)})]
+      (if-let [db-player (mc/find-one-as-map (utils/get-db) c/*collection* {:_id (org.bson.types.ObjectId. pid)})]
         (h/html
           (header)
           [:body
@@ -162,7 +162,7 @@
   [req]
   (let [{:keys [route-params]} req
         {:keys [pid]} route-params]
-        (if-let [db-player (mc/find-one-as-map db c/*collection* {:_id (org.bson.types.ObjectId. pid)})]
+        (if-let [db-player (mc/find-one-as-map (utils/get-db) c/*collection* {:_id (org.bson.types.ObjectId. pid)})]
           (let [events (:events (:espn-data db-player))
                 events (sort-by :game-epoch events)
                 chart (time-series-plot (range (count events)) (map :draftking-fpts events))
@@ -175,6 +175,19 @@
                 (r/header "Content-Type" "image/png")))
           (h/html "Player could not be found"))))
 
+(defn show-nba-lineups
+  [req]
+  (h/html
+    (header)
+    [:body
+     (navbar "nba")
+     [:div {:class "jumbotron"}
+      [:div {:class "container"}
+       [:p { :style "text-align: center"}
+        [:a {:class "btn btn-primary btn-lg" :href "#" :role "button"}
+         "Create NBA 1"]]]]
+     ]))
+
 (defn show-nhl
   [req]
   (let [db (utils/get-db)]
@@ -185,8 +198,8 @@
        [:div {:class "jumbotron"}
         [:div {:class "container"}
          [:p { :style "text-align: center"}
-          [:a {:class "btn btn-primary btn-lg" :href "#" :role "button"}
-           "Create NBA lineups"]]]]
+          [:a {:class "btn btn-primary btn-lg" :href "/nhl/lineups" :role "button"}
+           "Create NHL lineups"]]]]
        [:div {:class "container"}
         [:div {:class "row"}
          [:table {:class "table"}
@@ -222,6 +235,7 @@
                  (ccore/GET "/nba" [] show-nba-all)
                  (ccore/GET "/nhl" [] show-nhl)
                  (ccore/GET "/nba/player/:pid" [pid] show-nba-player)
+                 (ccore/GET "/nba/lineups" [] show-nba-lineups)
                  (ccore/GET "/nba/player/chart/:pid" [pid] show-nba-player-chart)
                  ;(ccore/GET "/resptime" [] show-response-time)
                  ;(ccore/GET "/reqcnt-chart/:url" [url] show-request-chart)

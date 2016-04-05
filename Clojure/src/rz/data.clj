@@ -18,8 +18,8 @@
 ;(def players-csv-fd "../data/fd_nba_feb_18.csv")
 ;(def lineup-csv-dk "../data/dk_nba_linup_feb_18.csv")
 
-(def players-csv-fd "../data/fd_nba_mar_7.csv")
-(def lineup-csv-dk "../data/dk_nba_linup_mar_7_3.csv")
+(def players-csv-fd "../data/fd_nba_mar_12.csv")
+(def lineup-csv-dk "../data/dk_nba_linup_mar_12.csv")
 
 
 (def ^:dynamic *projections-csv* "../projections.csv")

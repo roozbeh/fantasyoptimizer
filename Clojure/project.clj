@@ -11,6 +11,7 @@
                  [com.cemerick/url "0.1.1"]
                  [incanter "1.2.3-SNAPSHOT"]
                  [clj-time "0.11.0"]
+                 [clj-http "2.1.0"]
 
                  [http-kit "2.1.18"]
                  [compojure "1.4.0"]

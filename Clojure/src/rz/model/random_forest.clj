@@ -19,7 +19,7 @@
 
 (defn create-array-for-regression
   [data]
-  (map (fn [{:keys [pts-current last-home-event-mins
+  (map (fn [{:keys [Name pts-current last-home-event-mins
                     last-home-event-pts avg-last-away-games
                     event-cnt last-salary cur-salary avg-salary
                     last-event-mins last-event-pts
@@ -45,6 +45,9 @@
             F                                               ;6
             (nth (reverse all-scores) 0)                    ;7
             (nth (reverse all-scores) 1)                    ;8
+            (nth (reverse all-scores) 2)                    ;8
+            (nth (reverse all-scores) 3)                    ;8
+            (nth (reverse all-scores) 4)                    ;8
             last-event-points                               ;9
             (utils/bool->int current-home)                  ;10
             avg-last-games                                  ;14.8
@@ -56,14 +59,10 @@
             (:opp-team (nth (reverse home-events) 0))
             (nth (reverse home-scores) 0)
             (:opp-team (nth (reverse home-events) 1))
-            (nth (reverse home-scores) 1)
-            (:opp-team (nth (reverse home-events) 2))
             (nth (reverse home-scores) 2)
             (:opp-team (nth (reverse away-events) 0))
             (nth (reverse away-scores) 0)
             (:opp-team (nth (reverse away-events) 1))
-            (nth (reverse away-scores) 1)
-            (:opp-team (nth (reverse away-events) 2))
             (nth (reverse away-scores) 2)
             (:points (last non-zero-events))
             (:rebounds (last non-zero-events))

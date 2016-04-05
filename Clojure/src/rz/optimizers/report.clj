@@ -65,7 +65,7 @@
             :MaxSc      (apply max scores)
             :minutes    (:mins (last events))
             ;:real-fd (espn/get-player-score-memo Name :fanduel-fpts "Wed 2/10/2016")
-            ;:real-dk (espn/get-player-score-memo Name :draftking-fpts "Thu 3/3/2016")
+            :real-dk (espn/get-player-score-memo Name :draftking-fpts "Mon 3/7/2016")
             ;:real-dk (or (rotogrinder/get-player-score-memo Name :draftking-fpts "2016-02-26")
             ;             (rotogrinder/get-player-score-memo Name :draftking-fpts "2016-02-25"))
             ;(str "G " (:game-date last-event))
@@ -91,7 +91,7 @@
         column (add-column column :roto-wire-projection :Roto)
         column (add-column column :rtree-projection :TreeProj)
         column (add-column column :xg-projection :XG)
-        ;column (conj column :real-dk)
+        column (conj column :real-dk)
         ]
     (pp/print-table
       column

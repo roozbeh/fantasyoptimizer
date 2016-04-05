@@ -32,8 +32,8 @@
   (binding [c/*active-sport* c/*nba*
             c/*active-database* :espn
             c/*collection* c/*nba*
-            c/*solution-cnt* 5
-            c/*max-common-players-draftkings* 6]
+            c/*solution-cnt* 2
+            c/*max-common-players-draftkings* 4]
     (if prod-run
       (force-espn-update))
     (let [db (utils/get-db)
@@ -55,6 +55,7 @@
                                                       :rank
                                                       :rtree-projection))
         c/*draftking*))))
+
 
 (defn- optimize-nba-draftkings-highrisk
   [prod-run]
